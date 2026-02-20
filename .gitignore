@@ -6,6 +6,7 @@ node_modules/
 
 # firebase
 serviceAccountKey.json
+smye-line-ai-firebase-adminsdk-fbsvc-5825f5bf2e.json
 
 # logs
 npm-debug.log*
