@@ -54,6 +54,27 @@ async function handleMessage(event) {
 
   console.log("📩 TEXT:", text);
 
+if (text === "รายการแจ้งเตือน") {
+  const snap = await db.collection("reminders")
+    .where("groupId", "==", groupId)
+    .where("active", "==", true)
+    .get();
+
+  if (snap.empty) {
+    await reply(event.replyToken, "ไม่มีแจ้งเตือน");
+    return;
+  }
+
+  let msg = "📋 รายการแจ้งเตือน\n";
+  snap.forEach(doc => {
+    const d = doc.data();
+    msg += `• ID: ${d.id} | ${d.message}\n`;
+  });
+
+  await reply(event.replyToken, msg);
+  return;
+}
+
   // ===== HELP COMMAND =====
   if (text === "help" || text === "คำสั่ง") {
     return client.replyMessage(event.replyToken, {
@@ -66,6 +87,7 @@ help → ดูคำสั่ง
 ping → ทดสอบบอท
 แจ้งเตือน <ข้อความ> → เพิ่มแจ้งเตือน
 ยกเลิก <id> → ยกเลิกแจ้งเตือน
+เรียก https://smye-line-ai.onrender.com/ping เพื่อปลุก
 
 พิมพ์อะไรก็ได้ บอทจะตอบกลับ 😉`
     });
@@ -131,7 +153,8 @@ ping → ทดสอบบอท
    🔥 HEALTH CHECK
 ================================= */
 app.get("/ping", (req, res) => {
-  res.send("pong");
+  res.status(200).send("ฉันตื่นอยู่");
+});
 });
 
 /* ===============================
