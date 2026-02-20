@@ -54,6 +54,35 @@ async function handleMessage(event) {
 
   console.log("📩 TEXT:", text);
 
+
+  // ===== HELP COMMAND =====
+  if (text === "help" || text === "คำสั่ง") {
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text:
+`🤖 คำสั่งที่ใช้ได้
+
+พิมพ์:
+help → ดูคำสั่ง
+ping → ทดสอบบอท
+แจ้งเตือน <ข้อความ> → เพิ่มแจ้งเตือน
+ยกเลิก <id> → ยกเลิกแจ้งเตือน
+รายการแจ้งเตือน
+เรียก https://smye-line-ai.onrender.com/ping เพื่อปลุก
+
+พิมพ์อะไรก็ได้ บอทจะตอบกลับ 😉`
+    });
+  }
+
+  // ===== PING =====
+  if (text === "ping") {
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "🏓 PONG! BOT ทำงานอยู่ ✅"
+    });
+  }
+
+
 if (text === "รายการแจ้งเตือน") {
   const snap = await db.collection("reminders")
     .where("groupId", "==", groupId)
@@ -74,32 +103,6 @@ if (text === "รายการแจ้งเตือน") {
   await reply(event.replyToken, msg);
   return;
 }
-
-  // ===== HELP COMMAND =====
-  if (text === "help" || text === "คำสั่ง") {
-    return client.replyMessage(event.replyToken, {
-      type: "text",
-      text:
-`🤖 คำสั่งที่ใช้ได้
-
-พิมพ์:
-help → ดูคำสั่ง
-ping → ทดสอบบอท
-แจ้งเตือน <ข้อความ> → เพิ่มแจ้งเตือน
-ยกเลิก <id> → ยกเลิกแจ้งเตือน
-เรียก https://smye-line-ai.onrender.com/ping เพื่อปลุก
-
-พิมพ์อะไรก็ได้ บอทจะตอบกลับ 😉`
-    });
-  }
-
-  // ===== PING =====
-  if (text === "ping") {
-    return client.replyMessage(event.replyToken, {
-      type: "text",
-      text: "🏓 PONG! BOT ทำงานอยู่ ✅"
-    });
-  }
 
   // ===== ADD REMINDER =====
   if (text.startsWith("แจ้งเตือน")) {
