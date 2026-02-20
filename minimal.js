@@ -26,6 +26,13 @@ const client = new Client({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
 });
 
+async function reply(token, text) {
+  return client.replyMessage(token, {
+    type: "text",
+    text
+  });
+}
+
 /* ===============================
    🔥 LINE WEBHOOK
 ================================= */
@@ -40,7 +47,11 @@ app.post(
 
     for (const event of events) {
       if (event.type === "message" && event.message.type === "text") {
-        await handleMessage(event);
+      try {
+		  await handleMessage(event);
+		} catch (e) {
+		  console.error("BOT ERROR:", e);
+		}
       }
     }
 
