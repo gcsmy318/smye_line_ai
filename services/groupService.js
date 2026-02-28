@@ -100,16 +100,14 @@ async function handleMessage(event) {
        เซ็ต1 - เซ็ต7 (ADMIN ONLY)
     ===================================================== */
 if (normalized.startsWith("เซ็ต")) {
-
   try {
-
-
-
     const profile = await getProfile(userId);
-    const displayName = profile?.displayName || "";
+    const displayName = (profile?.displayName || "").trim().toLowerCase();
 
-    if (displayName !== "Smile") {
-      return safeReply(event.replyToken,
+    // ตรวจสอบว่าเป็น Smile เท่านั้น
+    if (displayName !== "smile") {
+      return safeReply(
+        event.replyToken,
         "⛔ คำสั่งนี้ใช้ได้เฉพาะผู้ดูแล Smile เท่านั้น"
       );
     }
@@ -118,7 +116,10 @@ if (normalized.startsWith("เซ็ต")) {
 
   } catch (err) {
     console.error("Admin Check Error:", err);
-    return safeReply(event.replyToken, "เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์");
+    return safeReply(
+      event.replyToken,
+      "เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์"
+    );
   }
 }
 
