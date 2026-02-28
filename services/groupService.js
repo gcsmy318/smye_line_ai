@@ -17,9 +17,9 @@ const DEFAULT_MODULES = {
   registry: false
 };
 
-/* ========================================
+/* ================================
    ENTRY POINT
-======================================== */
+================================ */
 async function handleMessage(event) {
   const db = getDB();
   const groupId = event.source.groupId || event.source.userId;
@@ -39,69 +39,38 @@ async function handleMessage(event) {
   const group = (await docRef.get()).data();
   const modules = group.modules || DEFAULT_MODULES;
 
-  /* ===============================
-     HELP / MENU
-  ================================ */
+  /* ============================
+     HELP MENU (แบบตัวเลข)
+  ============================ */
   if (isHelpCommand(normalized)) {
-    return reply(event.replyToken, buildMainHelp(group));
+    return reply(event.replyToken, buildMainMenu(group));
   }
 
+  /* ============================
+     เลือกเมนูด้วยตัวเลข
+  ============================ */
+  if (["1","2","3","4","5","6","7"].includes(normalized)) {
+    return handleNumberMenu(normalized, docRef, event);
+  }
+
+  /* ============================
+     HELP DETAIL
+  ============================ */
   if (normalized.startsWith("help ")) {
     const moduleName = normalized.replace("help ", "").trim();
-    return reply(event.replyToken, buildModuleHelp(moduleName));
+    return reply(event.replyToken, buildModuleDetail(moduleName));
   }
 
-  /* ===============================
+  /* ============================
      STATUS
-  ================================ */
+  ============================ */
   if (normalized === "สถานะ" || normalized === "status") {
     return reply(event.replyToken, buildStatus(group));
   }
 
-  /* ===============================
-     SETUP TYPE
-  ================================ */
-  if (normalized.startsWith("ตั้งค่า type ")) {
-    const type = normalized.replace("ตั้งค่า type ", "").trim();
-    await docRef.set({ type }, { merge: true });
-    return reply(event.replyToken, `ตั้งค่าประเภทกลุ่มเป็น ${type} แล้ว`);
-  }
-
-  /* ===============================
-     ENABLE MODULE
-  ================================ */
-  if (normalized.startsWith("เปิด ")) {
-    const moduleName = normalized.replace("เปิด ", "").trim();
-    if (!DEFAULT_MODULES.hasOwnProperty(moduleName)) {
-      return reply(event.replyToken, "ไม่พบชื่อระบบนี้");
-    }
-
-    await docRef.set({
-      modules: { [moduleName]: true }
-    }, { merge: true });
-
-    return reply(event.replyToken, `เปิดระบบ ${moduleName} แล้ว`);
-  }
-
-  /* ===============================
-     DISABLE MODULE
-  ================================ */
-  if (normalized.startsWith("ปิด ")) {
-    const moduleName = normalized.replace("ปิด ", "").trim();
-    if (!DEFAULT_MODULES.hasOwnProperty(moduleName)) {
-      return reply(event.replyToken, "ไม่พบชื่อระบบนี้");
-    }
-
-    await docRef.set({
-      modules: { [moduleName]: false }
-    }, { merge: true });
-
-    return reply(event.replyToken, `ปิดระบบ ${moduleName} แล้ว`);
-  }
-
-  /* ===============================
+  /* ============================
      ROUTER
-  ================================ */
+  ============================ */
   if (modules.province && await province.handle(event, group)) return;
   if (modules.hatyai && await hatyai.handle(event, group)) return;
   if (modules.reminder && await reminder.handle(event, group)) return;
@@ -110,107 +79,143 @@ async function handleMessage(event) {
   if (modules.registry && await registry.handle(event, group)) return;
 }
 
-/* ========================================
-   JOIN EVENT
-======================================== */
-async function handleJoin(event) {
-  const groupId = event.source.groupId;
-  const db = getDB();
+/* ================================
+   MENU HANDLER (ตัวเลข)
+================================ */
+async function handleNumberMenu(number, docRef, event) {
 
-  await db.collection("groups").doc(groupId).set({
-    type: "general",
-    modules: DEFAULT_MODULES
-  });
+  const map = {
+    "1": "province",
+    "2": "hatyai",
+    "3": "reminder",
+    "4": "permanentNote",
+    "5": "serviceReport",
+    "6": "registry",
+    "7": "status"
+  };
 
-  return reply(event.replyToken, `
-🤖 Spirit AI พร้อมใช้งานแล้ว
+  const moduleName = map[number];
 
-ขั้นตอนการตั้งค่า:
+  if (moduleName === "status") {
+    const group = (await docRef.get()).data();
+    return reply(event.replyToken, buildStatus(group));
+  }
 
-1️⃣ พิมพ์ help
-2️⃣ เปิดระบบ เช่น:
-   เปิด province
-   เปิด hatyai
-3️⃣ พิมพ์ สถานะ เพื่อตรวจสอบ
-`);
+  await docRef.set({
+    modules: { [moduleName]: true }
+  }, { merge: true });
+
+  return reply(event.replyToken,
+    `✅ เปิดระบบ ${moduleName} แล้ว\nพิมพ์ help ${moduleName} เพื่อดูวิธีใช้แบบละเอียด`
+  );
 }
 
-/* ========================================
-   HELP BUILDERS
-======================================== */
+/* ================================
+   MAIN MENU
+================================ */
+function buildMainMenu(group) {
+  return `
+🤖 Spirit AI เมนูหลัก
 
-function buildMainHelp(group) {
-  let msg = "🤖 Spirit AI เมนูหลัก\n";
-  msg += "============================\n\n";
+พิมพ์เลขเพื่อเปิดระบบ:
 
-  msg += "📌 คำสั่งพื้นฐาน\n";
-  msg += "- help / เมนู / คำสั่ง\n";
-  msg += "- สถานะ\n";
-  msg += "- เปิด province\n";
-  msg += "- ปิด province\n\n";
+1️⃣ ระบบรายงานจังหวัด
+   ➜ แจ้งเตือนส่งสถิติ 6 จังหวัด
 
-  msg += "📘 ระบบที่เปิดใช้งาน:\n";
+2️⃣ ระบบสถิติหาดใหญ่
+   ➜ รายงาน pro=20 stb=10
 
-  Object.keys(group.modules).forEach(k => {
-    msg += group.modules[k]
-      ? `✔ ${k}\n`
-      : `✖ ${k}\n`;
-  });
+3️⃣ ระบบแจ้งเตือนล่วงหน้า
+   ➜ เตือนก่อนงาน 3 วัน
 
-  msg += "\nพิมพ์ help ชื่อระบบ เช่น:\n";
-  msg += "help province\n";
+4️⃣ ระบบบันทึกถาวร
+   ➜ เก็บข้อมูลลา / บันทึกสำคัญ
 
-  return msg;
+5️⃣ ระบบรายงานการรับใช้
+   ➜ บันทึกสิ่งที่ทำในแต่ละสัปดาห์
+
+6️⃣ ระบบทะเบียนสมาชิก
+   ➜ บันทึกวันเกิด + เบอร์โทร
+
+7️⃣ ดูสถานะระบบ
+
+พิมพ์ help province
+เพื่อดูรายละเอียดแบบเต็ม
+`;
 }
 
-function buildModuleHelp(moduleName) {
+/* ================================
+   DETAIL HELP
+================================ */
+function buildModuleDetail(moduleName) {
   switch (moduleName) {
     case "province":
       return `
-📊 ระบบรายงานจังหวัด
-พิมพ์:
-สงขลา ส่งสถิติแล้ว
+📊 ระบบรายงานจังหวัด (ละเอียด)
 
 แจ้งเตือน:
-อา จ อ ศ 08:00
+อา จ อ ศ เวลา 08:00
+
+จังหวัด:
+สงขลา สตูล ปัตตานี ยะลา นราธิวาส พัทลุง
+
+วิธีส่ง:
+สงขลา ส่งสถิติแล้ว
 `;
 
     case "hatyai":
       return `
-📊 ระบบสถิติหาดใหญ่
-พิมพ์:
-pro=20 stb=10
+📊 ระบบสถิติหาดใหญ่ (ละเอียด)
 
 แจ้งเตือน:
-อาทิตย์ 13:00
+ทุกวันอาทิตย์ 13:00
+
+วิธีส่ง:
+pro=20
+pro=20 stb=10
 `;
 
     case "reminder":
       return `
 ⏰ ระบบแจ้งเตือนล่วงหน้า
+
 พิมพ์:
 แจ้งเตือน ค่าย 1/3/2569
+
+ระบบจะแจ้งเตือนล่วงหน้า 3 วัน
 `;
 
     case "permanentNote":
       return `
 📝 ระบบบันทึกถาวร
+
 พิมพ์:
 บันทึกลา สมาย 12/03/2026
+
+ดูทั้งหมด:
+บันทึกถาวร
 `;
 
     case "serviceReport":
       return `
 📘 ระบบรายงานการรับใช้
+
 พิมพ์:
 รายงานการรับใช้ วันนี้ไปดูแลคน
+
+ดูรายงาน:
+บันทึกรายงานการรับใช้
 `;
 
     case "registry":
       return `
 👤 ระบบทะเบียนสมาชิก
+
 พิมพ์:
 ลงทะเบียน สมาย 19/10/1993 เบอร์โทร...
+
+ค้นหา:
+ขอข้อมูลทะเบียนเดือน10
 `;
 
     default:
@@ -218,41 +223,33 @@ pro=20 stb=10
   }
 }
 
+/* ================================
+   STATUS
+================================ */
 function buildStatus(group) {
-  let msg = "📊 สถานะกลุ่มนี้\n";
-  msg += `ประเภท: ${group.type}\n\n`;
-  msg += "ระบบที่เปิดใช้งาน:\n";
-
+  let msg = "📊 สถานะกลุ่มนี้\n\n";
   Object.keys(group.modules).forEach(k => {
     msg += group.modules[k]
       ? `✔ ${k}\n`
       : `✖ ${k}\n`;
   });
-
   return msg;
 }
 
-/* ========================================
+/* ================================
    UTIL
-======================================== */
-
+================================ */
 function isHelpCommand(text) {
   const keywords = [
     "help",
     "menu",
     "เมนู",
     "คำสั่ง",
-    "คู่มือ",
-    "วิธีใช้",
-    "ช่วย",
-    "setup",
-    "ตั้งค่า"
+    "setup"
   ];
-
   return keywords.some(k => text.includes(k));
 }
 
 module.exports = {
-  handleMessage,
-  handleJoin
+  handleMessage
 };
