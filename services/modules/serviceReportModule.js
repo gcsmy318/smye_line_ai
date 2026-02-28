@@ -1,3 +1,3 @@
-module.exports = {
-  async handle() {}
-};
+
+async function handle() { return false; }
+module.exports = { handle };
