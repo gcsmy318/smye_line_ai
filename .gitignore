@@ -1,14 +1,58 @@
-# node
-node_modules/
-
-# env
-.env
-
 # firebase
-serviceAccountKey.json
 smye-line-ai-firebase-adminsdk-fbsvc-5825f5bf2e.json
 
 # logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+
+
+# ===============================
+# Node
+# ===============================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# ===============================
+# Environment
+# ===============================
+.env
+.env.*
+!.env.example
+
+# ===============================
+# Firebase / Secrets
+# ===============================
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+firebase.json
+.firebaserc
+
+# ===============================
+# Logs
+# ===============================
+logs/
+*.log
+
+# ===============================
+# OS Files
+# ===============================
+.DS_Store
+Thumbs.db
+
+# ===============================
+# IDE
+# ===============================
+.vscode/
+.idea/
+
+# ===============================
+# Build / Temp
+# ===============================
+dist/
+build/
+coverage/

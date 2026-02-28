@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>LINE BOT Dashboard</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .card { border:1px solid #ddd; padding:15px; margin-bottom:10px; }
+  </style>
+</head>
+<body>
+
+<h2>📊 Dashboard</h2>
+
+<div id="groups"></div>
+
+<script>
+async function loadGroups() {
+  const res = await fetch("/api/admin/groups");
+  const groups = await res.json();
+
+  const container = document.getElementById("groups");
+
+  groups.forEach(g => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      <b>Group ID:</b> ${g.id}<br>
+      <b>Type:</b> ${g.type}<br>
+      <button onclick="viewStatus('${g.id}')">ดูสถานะ</button>
+      <div id="status-${g.id}"></div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+async function viewStatus(groupId) {
+  const res = await fetch(`/api/admin/province-status/${groupId}`);
+  const data = await res.json();
+
+  const container = document.getElementById(`status-${groupId}`);
+
+  if (!data.status) {
+    container.innerHTML = "ยังไม่มีข้อมูลสัปดาห์นี้";
+    return;
+  }
+
+  let html = "<ul>";
+  Object.keys(data.status).forEach(p => {
+    html += `<li>${p} : ${data.status[p] ? "ส่งแล้ว" : "ยังไม่ส่ง"}</li>`;
+  });
+  html += "</ul>";
+
+  container.innerHTML = html;
+}
+
+loadGroups();
+</script>
+
+</body>
+</html>
