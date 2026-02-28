@@ -1,5 +1,5 @@
 const { getDB } = require("../config/firebase");
-const { reply } = require("../config/line");
+const { reply, getProfile } = require("../config/line");
 
 const province = require("./modules/provinceModule");
 const hatyai = require("./modules/hatyaiModule");
@@ -7,8 +7,6 @@ const reminder = require("./modules/reminderModule");
 const note = require("./modules/permanentNoteModule");
 const report = require("./modules/serviceReportModule");
 const registry = require("./modules/registryModule");
-
-const ADMIN_USER_ID = process.env.ADMIN_USER_ID;
 
 /* =====================================================
    DEFAULT MODULES
@@ -35,15 +33,13 @@ async function safeReply(token, message) {
 }
 
 /* =====================================================
-   ENTRY POINT (HARDENED)
+   ENTRY POINT (SAFE)
 ===================================================== */
 async function handleMessage(event) {
 
   try {
 
-    /* ===============================
-       กัน event พัง
-    ================================ */
+    // กัน event พัง
     if (!event || !event.message || event.message.type !== "text") {
       return;
     }
@@ -62,9 +58,7 @@ async function handleMessage(event) {
     const docRef = db.collection("groups").doc(groupId);
     const doc = await docRef.get();
 
-    /* ===============================
-       สร้าง group ครั้งแรก
-    ================================ */
+    // สร้าง group ครั้งแรก
     if (!doc.exists) {
       await docRef.set({
         type: "general",
@@ -75,16 +69,16 @@ async function handleMessage(event) {
     const group = (await docRef.get()).data() || {};
     const modules = group.modules || DEFAULT_MODULES;
 
-    /* =====================================================
+    /* ===============================
        HELP MENU
-    ===================================================== */
+    ================================ */
     if (isHelpCommand(normalized)) {
       return safeReply(event.replyToken, buildMainMenu());
     }
 
-    /* =====================================================
+    /* ===============================
        HELP DETAIL
-    ===================================================== */
+    ================================ */
     if (normalized.startsWith("help ")) {
 
       const number = normalized.replace("help ", "").trim();
@@ -96,42 +90,43 @@ async function handleMessage(event) {
       return safeReply(event.replyToken, "พิมพ์ help 1 - help 6 เท่านั้น");
     }
 
-    /* =====================================================
-       เซ็ต1 - เซ็ต7 (ADMIN ONLY)
-    ===================================================== */
-if (normalized.startsWith("เซ็ต")) {
-  try {
-    const profile = await getProfile(userId);
-    const displayName = (profile?.displayName || "").trim().toLowerCase();
+    /* ===============================
+       เซ็ต1 - เซ็ต7 (เฉพาะชื่อ Smile)
+    ================================ */
+    if (normalized.startsWith("เซ็ต")) {
 
-    // ตรวจสอบว่าเป็น Smile เท่านั้น
-    if (displayName !== "smile") {
-      return safeReply(
-        event.replyToken,
-        "⛔ คำสั่งนี้ใช้ได้เฉพาะผู้ดูแล Smile เท่านั้น"
-      );
+      try {
+
+        const profile = await getProfile(userId);
+        const displayName = (profile?.displayName || "").trim().toLowerCase();
+
+        if (displayName !== "smile") {
+          return safeReply(
+            event.replyToken,
+            "⛔ คำสั่งนี้ใช้ได้เฉพาะผู้ดูแล Smile เท่านั้น"
+          );
+        }
+
+        return handleSetCommand(normalized, docRef, event);
+
+      } catch (err) {
+        console.error("Admin Check Error:", err);
+        return safeReply(
+          event.replyToken,
+          "เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์"
+        );
+      }
     }
 
-    return handleSetCommand(normalized, docRef, event);
-
-  } catch (err) {
-    console.error("Admin Check Error:", err);
-    return safeReply(
-      event.replyToken,
-      "เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์"
-    );
-  }
-}
-
-    /* =====================================================
+    /* ===============================
        ROUTER (กัน module แตก)
-    ===================================================== */
-    try { if (modules.province && await province.handle(event, group)) return; } catch(e){console.error(e)}
-    try { if (modules.hatyai && await hatyai.handle(event, group)) return; } catch(e){console.error(e)}
-    try { if (modules.reminder && await reminder.handle(event, group)) return; } catch(e){console.error(e)}
-    try { if (modules.permanentNote && await note.handle(event, group)) return; } catch(e){console.error(e)}
-    try { if (modules.serviceReport && await report.handle(event, group)) return; } catch(e){console.error(e)}
-    try { if (modules.registry && await registry.handle(event, group)) return; } catch(e){console.error(e)}
+    ================================ */
+    try { if (modules.province && await province.handle(event, group)) return; } catch(e){ console.error(e); }
+    try { if (modules.hatyai && await hatyai.handle(event, group)) return; } catch(e){ console.error(e); }
+    try { if (modules.reminder && await reminder.handle(event, group)) return; } catch(e){ console.error(e); }
+    try { if (modules.permanentNote && await note.handle(event, group)) return; } catch(e){ console.error(e); }
+    try { if (modules.serviceReport && await report.handle(event, group)) return; } catch(e){ console.error(e); }
+    try { if (modules.registry && await registry.handle(event, group)) return; } catch(e){ console.error(e); }
 
   } catch (error) {
     console.error("Fatal Error in handleMessage:", error);
@@ -187,14 +182,14 @@ function buildMainMenu() {
 🤖 Spirit AI เมนูหลัก
 =================================
 
-พิมพ์ เซ็ต1 - เซ็ต7 เพื่อเปิดระบบ (ผู้ดูแล)
+พิมพ์ เซ็ต1 - เซ็ต7 เพื่อเปิดระบบ (เฉพาะผู้ดูแล Smile)
 
 เซ็ต1️⃣  ระบบรายงานจังหวัด
-ติดตามการส่งสถิติ 6 จังหวัด
-แจ้งเตือนอัตโนมัติทุกสัปดาห์
+แจ้งเตือนส่งสถิติ 6 จังหวัด
+ติดตามครบทุกสัปดาห์
 
 เซ็ต2️⃣  ระบบสถิติหาดใหญ่
-กรอกตัวเลข pro / stb ได้ทันที
+กรอก pro=20 stb=10 ได้ทันที
 สรุปผลแบบเรียลไทม์
 
 เซ็ต3️⃣  ระบบแจ้งเตือนล่วงหน้า
@@ -203,7 +198,7 @@ function buildMainMenu() {
 
 เซ็ต4️⃣  ระบบบันทึกถาวร
 เก็บข้อมูลลาและบันทึกสำคัญ
-ค้นดูย้อนหลังได้เสมอ
+ดูย้อนหลังได้เสมอ
 
 เซ็ต5️⃣  ระบบรายงานการรับใช้
 บันทึกสิ่งที่ทำรายสัปดาห์
