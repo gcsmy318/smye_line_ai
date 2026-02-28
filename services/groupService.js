@@ -36,7 +36,6 @@ async function safeReply(token, message) {
    ENTRY POINT
 ===================================================== */
 async function handleMessage(event) {
-
   try {
 
     if (!event || !event.message || event.message.type !== "text") return;
@@ -45,10 +44,7 @@ async function handleMessage(event) {
     const groupId = event.source?.groupId || event.source?.userId;
     if (!groupId) return;
 
-    const rawText = event.message.text;
-    if (!rawText) return;
-
-    const text = rawText.trim();
+    const text = event.message.text?.trim();
     if (!text) return;
 
     const normalized = text.toLowerCase();
@@ -66,30 +62,31 @@ async function handleMessage(event) {
     const group = (await docRef.get()).data() || {};
     const modules = group.modules || DEFAULT_MODULES;
 
-    /* ===============================
-       HELP MENU
-    ================================ */
+    /* ================= HELP MENU ================= */
     if (isHelpCommand(normalized)) {
       return safeReply(event.replyToken, buildMainMenu());
     }
 
-    /* ===============================
-       HELP DETAIL
-    ================================ */
-    if (normalized.startsWith("help")) {
-
-      const number = normalized.replace("help", "").trim();
-
+    /* ================= HELP DETAIL ================= */
+    if (normalized.startsWith("help ")) {
+      const number = normalized.replace("help ", "").trim();
       if (["1","2","3","4","5","6"].includes(number)) {
         return safeReply(event.replyToken, buildModuleDetail(number));
       }
-
-      return safeReply(event.replyToken, "พิมพ์ help1 - help6 เท่านั้น");
+      return safeReply(event.replyToken, "พิมพ์ help 1 - help 6 เท่านั้น");
     }
 
-    /* ===============================
-       ต้องขึ้นต้นด้วย Smile เท่านั้น
-    ================================ */
+    /* ================= ดูแจ้งเตือน ================= */
+    if (normalized === "ดูแจ้งเตือน") {
+      return showReminders(docRef, event);
+    }
+
+    /* ================= ดูรายงานแจ้งเตือน ================= */
+    if (normalized === "ดูรายงานแจ้งเตือน") {
+      return showNotificationLogs(docRef, event);
+    }
+
+    /* ================= ต้องพิมพ์ Smile นำหน้า ================= */
     if (normalized.startsWith("smile")) {
 
       const command = normalized.replace("smile", "").trim();
@@ -97,13 +94,9 @@ async function handleMessage(event) {
       if (command.startsWith("เซ็ต")) {
         return handleSetCommand(command, docRef, event);
       }
-
-      return;
     }
 
-    /* ===============================
-       ROUTER
-    ================================ */
+    /* ================= ROUTER ================= */
     try { if (modules.province && await province.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.hatyai && await hatyai.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.reminder && await reminder.handle(event, group)) return; } catch(e){ console.error(e); }
@@ -120,7 +113,6 @@ async function handleMessage(event) {
    HANDLE SET
 ===================================================== */
 async function handleSetCommand(text, docRef, event) {
-
   try {
 
     const setMap = {
@@ -147,10 +139,13 @@ async function handleSetCommand(text, docRef, event) {
       modules: { [moduleName]: true }
     }, { merge: true });
 
-    return safeReply(
-      event.replyToken,
-      `✅ เปิดระบบ ${moduleName} เรียบร้อยแล้ว`
-    );
+    const updatedDoc = await docRef.get();
+    const updatedGroup = updatedDoc.data() || {};
+
+    let message = `✅ เปิดระบบ ${moduleName} เรียบร้อยแล้ว\n\n`;
+    message += buildStatus(updatedGroup);
+
+    return safeReply(event.replyToken, message);
 
   } catch (err) {
     console.error("SetCommand Error:", err.message);
@@ -158,120 +153,98 @@ async function handleSetCommand(text, docRef, event) {
 }
 
 /* =====================================================
-   เมนูหลัก (มีคำอธิบายครบ)
+   SHOW REMINDERS
+===================================================== */
+async function showReminders(docRef, event) {
+  try {
+
+    const snapshot = await docRef
+      .collection("reminders")
+      .orderBy("createdAt", "desc")
+      .limit(20)
+      .get();
+
+    if (snapshot.empty) {
+      return safeReply(event.replyToken, "📭 ไม่มีรายการแจ้งเตือน");
+    }
+
+    let msg = "📌 รายการแจ้งเตือนที่ตั้งไว้\n\n";
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      msg += `- ${data.title} (${data.date})\n`;
+    });
+
+    return safeReply(event.replyToken, msg);
+
+  } catch (err) {
+    console.error(err);
+    return safeReply(event.replyToken, "เกิดข้อผิดพลาดในการดึงข้อมูลแจ้งเตือน");
+  }
+}
+
+/* =====================================================
+   SHOW NOTIFICATION LOGS
+===================================================== */
+async function showNotificationLogs(docRef, event) {
+  try {
+
+    const snapshot = await docRef
+      .collection("notificationLogs")
+      .orderBy("createdAt", "desc")
+      .limit(10)
+      .get();
+
+    if (snapshot.empty) {
+      return safeReply(event.replyToken, "📭 ยังไม่มีประวัติแจ้งเตือน");
+    }
+
+    let msg = "📊 รายงานแจ้งเตือนล่าสุด\n\n";
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const date = data.createdAt?.seconds
+        ? new Date(data.createdAt.seconds * 1000).toLocaleString("th-TH")
+        : "-";
+      msg += `- ${date} (${data.type || "-"})\n`;
+    });
+
+    return safeReply(event.replyToken, msg);
+
+  } catch (err) {
+    console.error(err);
+    return safeReply(event.replyToken, "เกิดข้อผิดพลาดในการดึงรายงาน");
+  }
+}
+
+/* =====================================================
+   MENU
 ===================================================== */
 function buildMainMenu() {
   return `
 🤖 Spirit AI เมนูหลัก
 =================================
 
-เปิดระบบ (ต้องพิมพ์แบบนี้):
+Smile เซ็ต1 - เซ็ต7 เพื่อเปิดระบบ
 
-Smile เซ็ต1  → ระบบรายงานจังหวัด
-ติดตามการส่งสถิติ 6 จังหวัด
-แจ้งเตือนอัตโนมัติทุกสัปดาห์
-
-Smile เซ็ต2  → ระบบสถิติหาดใหญ่
-กรอก pro=20 stb=10 ได้ทันที
-สรุปผลแบบเรียลไทม์
-
-Smile เซ็ต3  → ระบบแจ้งเตือนล่วงหน้า
-บันทึกวันงาน ระบบเตือนก่อน 3 วัน
-ไม่พลาดกิจกรรมสำคัญ
-
-Smile เซ็ต4  → ระบบบันทึกถาวร
-เก็บข้อมูลลาและบันทึกสำคัญ
-ดูย้อนหลังได้เสมอ
-
-Smile เซ็ต5  → ระบบรายงานการรับใช้
-บันทึกสิ่งที่ทำรายสัปดาห์
-สร้างวัฒนธรรมการรับใช้
-
-Smile เซ็ต6  → ระบบทะเบียนสมาชิก
-บันทึกวันเกิดและเบอร์โทร
-ค้นหาตามเดือนเกิดได้
-
-Smile เซ็ต7  → ดูสถานะระบบ
-
-พิมพ์ help1 - help6
-เพื่อดูรายละเอียดแบบเต็ม
+help 1 - help 6 ดูรายละเอียด
+ดูแจ้งเตือน
+ดูรายงานแจ้งเตือน
 `;
 }
 
 /* =====================================================
-   รายละเอียดเต็มแต่ละระบบ
+   DETAIL
 ===================================================== */
 function buildModuleDetail(number) {
-
   switch (number) {
-
-    case "1":
-      return `
-📊 ระบบรายงานจังหวัด (ละเอียด)
-
-แจ้งเตือน: อา จ อ ศ เวลา 08:00
-จังหวัด: สงขลา สตูล ปัตตานี ยะลา นราธิวาส พัทลุง
-
-วิธีส่ง:
-สงขลา ส่งสถิติแล้ว
-`;
-
-    case "2":
-      return `
-📊 ระบบสถิติหาดใหญ่ (ละเอียด)
-
-แจ้งเตือน: ทุกวันอาทิตย์ 13:00
-
-วิธีส่ง:
-pro=20
-pro=20 stb=10
-`;
-
-    case "3":
-      return `
-⏰ ระบบแจ้งเตือนล่วงหน้า (ละเอียด)
-
-พิมพ์:
-แจ้งเตือน ค่าย 1/3/2569
-
-ระบบจะแจ้งเตือนล่วงหน้า 3 วัน เวลา 08:00
-`;
-
-    case "4":
-      return `
-📝 ระบบบันทึกถาวร (ละเอียด)
-
-พิมพ์:
-บันทึกลา สมาย 12/03/2026
-
-ดูทั้งหมด:
-บันทึกถาวร
-`;
-
-    case "5":
-      return `
-📘 ระบบรายงานการรับใช้ (ละเอียด)
-
-พิมพ์:
-รายงานการรับใช้ วันนี้ไปดูแลคน
-
-ดูรายงาน:
-บันทึกรายงานการรับใช้
-`;
-
-    case "6":
-      return `
-👤 ระบบทะเบียนสมาชิก (ละเอียด)
-
-พิมพ์:
-ลงทะเบียน สมาย 19/10/1993 เบอร์โทร...
-
-ค้นหา:
-ขอข้อมูลทะเบียนเดือน10
-`;
-
-    default:
-      return "ไม่พบระบบนี้";
+    case "1": return "📊 ระบบรายงานจังหวัด\nแจ้งเตือน 08:00 อา จ อ ศ";
+    case "2": return "📊 ระบบสถิติหาดใหญ่\nแจ้งเตือน อาทิตย์ 13:00";
+    case "3": return "⏰ ระบบแจ้งเตือนล่วงหน้า\nเตือนก่อนงาน 3 วัน";
+    case "4": return "📝 ระบบบันทึกถาวร\nบันทึกลาและข้อมูลสำคัญ";
+    case "5": return "📘 ระบบรายงานการรับใช้\nบันทึกสิ่งที่ทำรายสัปดาห์";
+    case "6": return "👤 ระบบทะเบียนสมาชิก\nบันทึกวันเกิดและเบอร์โทร";
+    default: return "ไม่พบระบบนี้";
   }
 }
 
