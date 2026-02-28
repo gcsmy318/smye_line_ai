@@ -1,11 +1,9 @@
 
 {
-  "name": "spirit-ai-production",
-  "version": "2.0.0",
+  "name": "spirit-ai-complete",
+  "version": "3.0.0",
   "main": "minimal.js",
-  "scripts": {
-    "start": "node minimal.js"
-  },
+  "scripts": { "start": "node minimal.js" },
   "dependencies": {
     "@line/bot-sdk": "^9.0.0",
     "body-parser": "^1.20.2",

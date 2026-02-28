@@ -15,8 +15,8 @@ function getWeekKey() {
 async function handle(event) {
   const text = event.message.text.trim();
   const groupId = event.source.groupId;
-
   const province = provinces.find(p => text.includes(p));
+
   if (!province || !text.includes("ส่งสถิติแล้ว")) return false;
 
   const db = getDB();
@@ -24,7 +24,7 @@ async function handle(event) {
 
   await db.collection("weeklyProvinceStats").doc(docId).set({
     status: { [province]: true }
-  }, { merge:true });
+  }, { merge: true });
 
   return reply(event.replyToken, `ขอบคุณ${province} ส่งสถิติแล้ว`);
 }

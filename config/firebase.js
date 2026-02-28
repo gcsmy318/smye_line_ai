@@ -10,8 +10,6 @@ function initFirebase() {
   db = admin.firestore();
 }
 
-function getDB() {
-  return db;
-}
+function getDB() { return db; }
 
 module.exports = { initFirebase, getDB };

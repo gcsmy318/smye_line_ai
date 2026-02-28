@@ -3,13 +3,14 @@ require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const { middleware } = require("@line/bot-sdk");
+
 const { initFirebase } = require("./config/firebase");
 const { handleMessage } = require("./services/groupService");
-const { startAllSchedulers } = require("./services/schedulers/masterScheduler");
+const { startSchedulers } = require("./services/schedulers/masterScheduler");
 
 const app = express();
 initFirebase();
-startAllSchedulers();
+startSchedulers();
 
 app.post(
   "/webhook",
@@ -25,7 +26,5 @@ app.post(
     res.sendStatus(200);
   }
 );
-
-app.get("/ping", (req, res) => res.send("Spirit AI Production Running"));
 
 app.listen(process.env.PORT || 8080);
