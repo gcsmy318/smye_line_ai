@@ -62,12 +62,11 @@ async function handleMessage(event) {
     const group = (await docRef.get()).data() || {};
     const modules = group.modules || DEFAULT_MODULES;
 
-    /* ================= HELP MENU ================= */
+    /* ================= HELP ================= */
     if (isHelpCommand(normalized)) {
       return safeReply(event.replyToken, buildMainMenu());
     }
 
-    /* ================= HELP DETAIL ================= */
     if (normalized.startsWith("help ")) {
       const number = normalized.replace("help ", "").trim();
       if (["1","2","3","4","5","6"].includes(number)) {
@@ -86,11 +85,9 @@ async function handleMessage(event) {
       return showNotificationLogs(docRef, event);
     }
 
-    /* ================= ต้องพิมพ์ Smile นำหน้า ================= */
+    /* ================= Smile เซ็ต ================= */
     if (normalized.startsWith("smile")) {
-
       const command = normalized.replace("smile", "").trim();
-
       if (command.startsWith("เซ็ต")) {
         return handleSetCommand(command, docRef, event);
       }
@@ -113,6 +110,7 @@ async function handleMessage(event) {
    HANDLE SET
 ===================================================== */
 async function handleSetCommand(text, docRef, event) {
+
   try {
 
     const setMap = {
@@ -139,47 +137,56 @@ async function handleSetCommand(text, docRef, event) {
       modules: { [moduleName]: true }
     }, { merge: true });
 
-    const updatedDoc = await docRef.get();
-    const updatedGroup = updatedDoc.data() || {};
+    const updated = (await docRef.get()).data() || {};
 
-    let message = `✅ เปิดระบบ ${moduleName} เรียบร้อยแล้ว\n\n`;
-    message += buildStatus(updatedGroup);
+    let msg = `✅ เปิดระบบ ${moduleName} เรียบร้อยแล้ว\n\n`;
+    msg += buildStatus(updated);
 
-    return safeReply(event.replyToken, message);
+    return safeReply(event.replyToken, msg);
 
   } catch (err) {
-    console.error("SetCommand Error:", err.message);
+    console.error("Set Error:", err);
   }
 }
 
 /* =====================================================
-   SHOW REMINDERS
+   SHOW REMINDERS (แก้ปัญหาไม่ขึ้น)
 ===================================================== */
 async function showReminders(docRef, event) {
+
   try {
 
-    const snapshot = await docRef
-      .collection("reminders")
-      .orderBy("createdAt", "desc")
-      .limit(20)
-      .get();
+    const snapshot = await docRef.collection("reminders").get();
 
     if (snapshot.empty) {
-      return safeReply(event.replyToken, "📭 ไม่มีรายการแจ้งเตือน");
+      return safeReply(event.replyToken, "📭 ไม่มีรายการแจ้งเตือนในระบบ");
     }
 
     let msg = "📌 รายการแจ้งเตือนที่ตั้งไว้\n\n";
 
     snapshot.forEach(doc => {
-      const data = doc.data();
-      msg += `- ${data.title} (${data.date})\n`;
+
+      const data = doc.data() || {};
+
+      const title =
+        data.title ||
+        data.message ||
+        data.name ||
+        "ไม่ระบุหัวข้อ";
+
+      const date =
+        data.date ||
+        data.rawDate ||
+        "-";
+
+      msg += `- ${title} (${date})\n`;
     });
 
     return safeReply(event.replyToken, msg);
 
   } catch (err) {
-    console.error(err);
-    return safeReply(event.replyToken, "เกิดข้อผิดพลาดในการดึงข้อมูลแจ้งเตือน");
+    console.error("ShowReminders Error:", err);
+    return safeReply(event.replyToken, "เกิดข้อผิดพลาดในการดึงแจ้งเตือน");
   }
 }
 
@@ -187,32 +194,33 @@ async function showReminders(docRef, event) {
    SHOW NOTIFICATION LOGS
 ===================================================== */
 async function showNotificationLogs(docRef, event) {
+
   try {
 
-    const snapshot = await docRef
-      .collection("notificationLogs")
-      .orderBy("createdAt", "desc")
-      .limit(10)
-      .get();
+    const snapshot = await docRef.collection("notificationLogs").get();
 
     if (snapshot.empty) {
       return safeReply(event.replyToken, "📭 ยังไม่มีประวัติแจ้งเตือน");
     }
 
-    let msg = "📊 รายงานแจ้งเตือนล่าสุด\n\n";
+    let msg = "📊 รายงานแจ้งเตือน\n\n";
 
     snapshot.forEach(doc => {
-      const data = doc.data();
-      const date = data.createdAt?.seconds
+
+      const data = doc.data() || {};
+
+      const type = data.type || "-";
+      const date = data.createdAt
         ? new Date(data.createdAt.seconds * 1000).toLocaleString("th-TH")
         : "-";
-      msg += `- ${date} (${data.type || "-"})\n`;
+
+      msg += `- ${date} (${type})\n`;
     });
 
     return safeReply(event.replyToken, msg);
 
   } catch (err) {
-    console.error(err);
+    console.error("Log Error:", err);
     return safeReply(event.replyToken, "เกิดข้อผิดพลาดในการดึงรายงาน");
   }
 }
@@ -223,11 +231,10 @@ async function showNotificationLogs(docRef, event) {
 function buildMainMenu() {
   return `
 🤖 Spirit AI เมนูหลัก
-=================================
 
-Smile เซ็ต1 - เซ็ต7 เพื่อเปิดระบบ
-
+Smile เซ็ต1 - เซ็ต7 เปิดระบบ
 help 1 - help 6 ดูรายละเอียด
+
 ดูแจ้งเตือน
 ดูรายงานแจ้งเตือน
 `;
@@ -238,12 +245,12 @@ help 1 - help 6 ดูรายละเอียด
 ===================================================== */
 function buildModuleDetail(number) {
   switch (number) {
-    case "1": return "📊 ระบบรายงานจังหวัด\nแจ้งเตือน 08:00 อา จ อ ศ";
-    case "2": return "📊 ระบบสถิติหาดใหญ่\nแจ้งเตือน อาทิตย์ 13:00";
-    case "3": return "⏰ ระบบแจ้งเตือนล่วงหน้า\nเตือนก่อนงาน 3 วัน";
-    case "4": return "📝 ระบบบันทึกถาวร\nบันทึกลาและข้อมูลสำคัญ";
-    case "5": return "📘 ระบบรายงานการรับใช้\nบันทึกสิ่งที่ทำรายสัปดาห์";
-    case "6": return "👤 ระบบทะเบียนสมาชิก\nบันทึกวันเกิดและเบอร์โทร";
+    case "1": return "📊 ระบบรายงานจังหวัด";
+    case "2": return "📊 ระบบสถิติหาดใหญ่";
+    case "3": return "⏰ ระบบแจ้งเตือนล่วงหน้า";
+    case "4": return "📝 ระบบบันทึกถาวร";
+    case "5": return "📘 ระบบรายงานการรับใช้";
+    case "6": return "👤 ระบบทะเบียนสมาชิก";
     default: return "ไม่พบระบบนี้";
   }
 }
