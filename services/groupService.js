@@ -68,11 +68,16 @@ async function handleMessage(event) {
   /* ===============================
      HELP DETAIL
   ================================ */
-  if (normalized.startsWith("help ")) {
-    const moduleName = normalized.replace("help ", "").trim();
-    return reply(event.replyToken, buildModuleDetail(moduleName));
+if (normalized.startsWith("help ")) {
+
+  const number = normalized.replace("help ", "").trim();
+
+  if (["1","2","3","4","5","6"].includes(number)) {
+    return reply(event.replyToken, buildModuleDetail(number));
   }
 
+  return reply(event.replyToken, "พิมพ์ help 1 - help 6 เท่านั้น");
+}
   /* ===============================
      ROUTER
   ================================ */
@@ -157,7 +162,7 @@ function buildMainMenu(group) {
 เซ็ต7️⃣  ดูสถานะระบบ
 ตรวจสอบว่ากลุ่มนี้เปิดอะไรอยู่
 
-พิมพ์ help province
+พิมพ์ help 1
 เพื่อดูรายละเอียดแบบเต็ม
 `;
 }
@@ -165,56 +170,73 @@ function buildMainMenu(group) {
 /* ========================================
    DETAIL HELP
 ======================================== */
-function buildModuleDetail(moduleName) {
+function buildModuleDetail(number) {
 
-  switch (moduleName) {
+  switch (number) {
 
-    case "province":
+    case "1":
       return `
-📊 ระบบรายงานจังหวัด
+📊 ระบบรายงานจังหวัด (รายละเอียด)
 
-แจ้งเตือน: อา จ อ ศ 08:00
-พิมพ์: สงขลา ส่งสถิติแล้ว
+แจ้งเตือน: อา จ อ ศ เวลา 08:00
+จังหวัด: สงขลา สตูล ปัตตานี ยะลา นราธิวาส พัทลุง
+
+วิธีส่ง:
+สงขลา ส่งสถิติแล้ว
 `;
 
-    case "hatyai":
+    case "2":
       return `
-📊 ระบบสถิติหาดใหญ่
+📊 ระบบสถิติหาดใหญ่ (รายละเอียด)
 
-แจ้งเตือน: อาทิตย์ 13:00
-พิมพ์: pro=20 stb=10
+แจ้งเตือน: ทุกวันอาทิตย์ 13:00
+
+วิธีส่ง:
+pro=20
+pro=20 stb=10
 `;
 
-    case "reminder":
+    case "3":
       return `
-⏰ ระบบแจ้งเตือนล่วงหน้า
+⏰ ระบบแจ้งเตือนล่วงหน้า (รายละเอียด)
 
 พิมพ์:
 แจ้งเตือน ค่าย 1/3/2569
+
+ระบบจะเตือนล่วงหน้า 3 วัน เวลา 08:00
 `;
 
-    case "permanentNote":
+    case "4":
       return `
-📝 ระบบบันทึกถาวร
+📝 ระบบบันทึกถาวร (รายละเอียด)
 
 พิมพ์:
 บันทึกลา สมาย 12/03/2026
+
+ดูทั้งหมด:
+บันทึกถาวร
 `;
 
-    case "serviceReport":
+    case "5":
       return `
-📘 ระบบรายงานการรับใช้
+📘 ระบบรายงานการรับใช้ (รายละเอียด)
 
 พิมพ์:
 รายงานการรับใช้ วันนี้ไปดูแลคน
+
+ดูรายงาน:
+บันทึกรายงานการรับใช้
 `;
 
-    case "registry":
+    case "6":
       return `
-👤 ระบบทะเบียนสมาชิก
+👤 ระบบทะเบียนสมาชิก (รายละเอียด)
 
 พิมพ์:
 ลงทะเบียน สมาย 19/10/1993 เบอร์...
+
+ค้นหา:
+ขอข้อมูลทะเบียนเดือน10
 `;
 
     default:
