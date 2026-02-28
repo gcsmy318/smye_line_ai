@@ -76,15 +76,15 @@ async function handleMessage(event) {
     /* ===============================
        HELP DETAIL
     ================================ */
-    if (normalized.startsWith("help ")) {
+    if (normalized.startsWith("help")) {
 
-      const number = normalized.replace("help ", "").trim();
+      const number = normalized.replace("help", "").trim();
 
       if (["1","2","3","4","5","6"].includes(number)) {
         return safeReply(event.replyToken, buildModuleDetail(number));
       }
 
-      return safeReply(event.replyToken, "พิมพ์ help 1 - help 6 เท่านั้น");
+      return safeReply(event.replyToken, "พิมพ์ help1 - help6 เท่านั้น");
     }
 
     /* ===============================
@@ -193,7 +193,7 @@ Smile เซ็ต6  → ระบบทะเบียนสมาชิก
 
 Smile เซ็ต7  → ดูสถานะระบบ
 
-พิมพ์ help 1 - help 6
+พิมพ์ help1 - help6
 เพื่อดูรายละเอียดแบบเต็ม
 `;
 }
