@@ -17,6 +17,9 @@ const DEFAULT_MODULES = {
   registry: false
 };
 
+/* =====================================================
+   SAFE REPLY
+===================================================== */
 async function safeReply(token, message) {
   try {
     if (!token || !message) return;
@@ -26,7 +29,11 @@ async function safeReply(token, message) {
   }
 }
 
+/* =====================================================
+   ENTRY POINT
+===================================================== */
 async function handleMessage(event) {
+
   try {
 
     if (!event || !event.message || event.message.type !== "text") return;
@@ -53,35 +60,54 @@ async function handleMessage(event) {
     const group = (await docRef.get()).data() || {};
     const modules = group.modules || DEFAULT_MODULES;
 
+    /* ===============================
+       HELP DETAIL (ต้องมาก่อน)
+    ================================ */
+
+    // รองรับ help1 , help 1 , HELP 1
+    const helpMatch = normalized.match(/^help\s*([1-6])$/);
+    if (helpMatch) {
+      const number = helpMatch[1];
+      return safeReply(event.replyToken, buildModuleDetail(number));
+    }
+
+    /* ===============================
+       HELP MENU
+    ================================ */
+
     if (isHelpCommand(normalized)) {
       return safeReply(event.replyToken, buildMainMenu());
     }
 
-    if (normalized.startsWith("help ")) {
-      const number = normalized.replace("help ", "").trim();
-      if (["1","2","3","4","5","6"].includes(number)) {
-        return safeReply(event.replyToken, buildModuleDetail(number));
-      }
-      return safeReply(event.replyToken, "พิมพ์ help 1 - help 6 เท่านั้น");
-    }
-
-    // 🎯 ดูแจ้งเตือน (จาก reminders collection จริงของคุณ)
+    /* ===============================
+       ดูแจ้งเตือน
+    ================================ */
     if (normalized === "ดูแจ้งเตือน") {
       return showReminders(db, groupId, event);
     }
 
-    // 🎯 ดูรายงานแจ้งเตือน (log ของ scheduler)
+    /* ===============================
+       ดูรายงานแจ้งเตือน
+    ================================ */
     if (normalized === "ดูรายงานแจ้งเตือน") {
       return showNotificationLogs(db, groupId, event);
     }
 
+    /* ===============================
+       เปิดระบบ (ต้องขึ้นต้นด้วย Smile)
+    ================================ */
     if (normalized.startsWith("smile")) {
+
       const command = normalized.replace("smile", "").trim();
+
       if (command.startsWith("เซ็ต")) {
         return handleSetCommand(command, docRef, event);
       }
     }
 
+    /* ===============================
+       ROUTER MODULE
+    ================================ */
     try { if (modules.province && await province.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.hatyai && await hatyai.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.reminder && await reminder.handle(event, group)) return; } catch(e){ console.error(e); }
@@ -94,7 +120,11 @@ async function handleMessage(event) {
   }
 }
 
+/* =====================================================
+   HANDLE SET COMMAND
+===================================================== */
 async function handleSetCommand(text, docRef, event) {
+
   try {
 
     const setMap = {
@@ -124,6 +154,7 @@ async function handleSetCommand(text, docRef, event) {
     const updated = (await docRef.get()).data() || {};
     let msg = `✅ เปิดระบบ ${moduleName} เรียบร้อยแล้ว\n\n`;
     msg += buildStatus(updated);
+
     return safeReply(event.replyToken, msg);
 
   } catch (err) {
@@ -131,6 +162,9 @@ async function handleSetCommand(text, docRef, event) {
   }
 }
 
+/* =====================================================
+   SHOW REMINDERS
+===================================================== */
 async function showReminders(db, groupId, event) {
   try {
 
@@ -160,6 +194,9 @@ async function showReminders(db, groupId, event) {
   }
 }
 
+/* =====================================================
+   SHOW NOTIFICATION LOGS
+===================================================== */
 async function showNotificationLogs(db, groupId, event) {
   try {
 
@@ -190,6 +227,9 @@ async function showNotificationLogs(db, groupId, event) {
   }
 }
 
+/* =====================================================
+   BUILD MENU
+===================================================== */
 function buildMainMenu() {
   return `
 🤖 Spirit AI เมนูหลัก
@@ -204,9 +244,9 @@ help 1 - help 6 ดูรายละเอียด
 
 function buildModuleDetail(number) {
   switch (number) {
-    case "1": return "📊 ระบบรายงานจังหวัด";
-    case "2": return "📊 ระบบสถิติหาดใหญ่";
-    case "3": return "⏰ ระบบแจ้งเตือนล่วงหน้า";
+    case "1": return "📊 ระบบรายงานจังหวัด (แจ้งเตือน อา จ อ ศ 08:00)";
+    case "2": return "📊 ระบบสถิติหาดใหญ่ (แจ้งเตือน อาทิตย์ 13:00)";
+    case "3": return "⏰ ระบบแจ้งเตือนล่วงหน้า (เตือนก่อนงาน 3 วัน)";
     case "4": return "📝 ระบบบันทึกถาวร";
     case "5": return "📘 ระบบรายงานการรับใช้";
     case "6": return "👤 ระบบทะเบียนสมาชิก";
@@ -223,9 +263,13 @@ function buildStatus(group) {
   return msg;
 }
 
+/* =====================================================
+   UTIL
+===================================================== */
 function isHelpCommand(text) {
-  const keywords = ["help","menu","เมนู","คำสั่ง","setup"];
-  return keywords.some(k => text.includes(k));
+  if (text === "help") return true;
+  const keywords = ["menu","เมนู","คำสั่ง","setup"];
+  return keywords.includes(text);
 }
 
 module.exports = {
