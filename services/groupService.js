@@ -103,12 +103,12 @@ if (normalized.startsWith("เซ็ต")) {
 
   try {
 
-    const ADMIN_ID = "gx]ujpogxHo"; // ใส่ userId จริงตรงนี้
+
 
     const profile = await getProfile(userId);
     const displayName = profile?.displayName || "";
 
-    if (userId !== ADMIN_ID || displayName !== "Smile") {
+    if (displayName !== "Smile") {
       return safeReply(event.replyToken,
         "⛔ คำสั่งนี้ใช้ได้เฉพาะผู้ดูแล Smile เท่านั้น"
       );
