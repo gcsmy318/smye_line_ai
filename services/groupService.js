@@ -8,9 +8,6 @@ const note = require("./modules/permanentNoteModule");
 const report = require("./modules/serviceReportModule");
 const registry = require("./modules/registryModule");
 
-/* =====================================================
-   DEFAULT MODULES
-===================================================== */
 const DEFAULT_MODULES = {
   province: false,
   hatyai: false,
@@ -20,9 +17,6 @@ const DEFAULT_MODULES = {
   registry: false
 };
 
-/* =====================================================
-   SAFE REPLY
-===================================================== */
 async function safeReply(token, message) {
   try {
     if (!token || !message) return;
@@ -32,9 +26,6 @@ async function safeReply(token, message) {
   }
 }
 
-/* =====================================================
-   ENTRY POINT
-===================================================== */
 async function handleMessage(event) {
   try {
 
@@ -62,7 +53,6 @@ async function handleMessage(event) {
     const group = (await docRef.get()).data() || {};
     const modules = group.modules || DEFAULT_MODULES;
 
-    /* ================= HELP ================= */
     if (isHelpCommand(normalized)) {
       return safeReply(event.replyToken, buildMainMenu());
     }
@@ -75,17 +65,16 @@ async function handleMessage(event) {
       return safeReply(event.replyToken, "พิมพ์ help 1 - help 6 เท่านั้น");
     }
 
-    /* ================= ดูแจ้งเตือน ================= */
+    // 🎯 ดูแจ้งเตือน (จาก reminders collection จริงของคุณ)
     if (normalized === "ดูแจ้งเตือน") {
-      return showReminders(docRef, event);
+      return showReminders(db, groupId, event);
     }
 
-    /* ================= ดูรายงานแจ้งเตือน ================= */
+    // 🎯 ดูรายงานแจ้งเตือน (log ของ scheduler)
     if (normalized === "ดูรายงานแจ้งเตือน") {
-      return showNotificationLogs(docRef, event);
+      return showNotificationLogs(db, groupId, event);
     }
 
-    /* ================= Smile เซ็ต ================= */
     if (normalized.startsWith("smile")) {
       const command = normalized.replace("smile", "").trim();
       if (command.startsWith("เซ็ต")) {
@@ -93,7 +82,6 @@ async function handleMessage(event) {
       }
     }
 
-    /* ================= ROUTER ================= */
     try { if (modules.province && await province.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.hatyai && await hatyai.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.reminder && await reminder.handle(event, group)) return; } catch(e){ console.error(e); }
@@ -106,11 +94,7 @@ async function handleMessage(event) {
   }
 }
 
-/* =====================================================
-   HANDLE SET
-===================================================== */
 async function handleSetCommand(text, docRef, event) {
-
   try {
 
     const setMap = {
@@ -138,10 +122,8 @@ async function handleSetCommand(text, docRef, event) {
     }, { merge: true });
 
     const updated = (await docRef.get()).data() || {};
-
     let msg = `✅ เปิดระบบ ${moduleName} เรียบร้อยแล้ว\n\n`;
     msg += buildStatus(updated);
-
     return safeReply(event.replyToken, msg);
 
   } catch (err) {
@@ -149,36 +131,24 @@ async function handleSetCommand(text, docRef, event) {
   }
 }
 
-/* =====================================================
-   SHOW REMINDERS (แก้ปัญหาไม่ขึ้น)
-===================================================== */
-async function showReminders(docRef, event) {
-
+async function showReminders(db, groupId, event) {
   try {
 
-    const snapshot = await docRef.collection("reminders").get();
+    const snapshot = await db
+      .collection("reminders")
+      .where("groupId", "==", groupId)
+      .get();
 
     if (snapshot.empty) {
-      return safeReply(event.replyToken, "📭 ไม่มีรายการแจ้งเตือนในระบบ");
+      return safeReply(event.replyToken, "📭 ไม่มีรายการแจ้งเตือนสำหรับกลุ่มนี้");
     }
 
     let msg = "📌 รายการแจ้งเตือนที่ตั้งไว้\n\n";
 
     snapshot.forEach(doc => {
-
-      const data = doc.data() || {};
-
-      const title =
-        data.title ||
-        data.message ||
-        data.name ||
-        "ไม่ระบุหัวข้อ";
-
-      const date =
-        data.date ||
-        data.rawDate ||
-        "-";
-
+      const data = doc.data();
+      const title = data.title || data.message || "-";
+      const date = data.scheduleDate || data.date || "-";
       msg += `- ${title} (${date})\n`;
     });
 
@@ -190,31 +160,26 @@ async function showReminders(docRef, event) {
   }
 }
 
-/* =====================================================
-   SHOW NOTIFICATION LOGS
-===================================================== */
-async function showNotificationLogs(docRef, event) {
-
+async function showNotificationLogs(db, groupId, event) {
   try {
 
-    const snapshot = await docRef.collection("notificationLogs").get();
+    const snapshot = await db
+      .collection("notificationLogs")
+      .where("groupId", "==", groupId)
+      .get();
 
     if (snapshot.empty) {
-      return safeReply(event.replyToken, "📭 ยังไม่มีประวัติแจ้งเตือน");
+      return safeReply(event.replyToken, "📭 ยังไม่มีประวัติแจ้งเตือนสำหรับกลุ่มนี้");
     }
 
     let msg = "📊 รายงานแจ้งเตือน\n\n";
 
     snapshot.forEach(doc => {
-
-      const data = doc.data() || {};
-
-      const type = data.type || "-";
+      const data = doc.data();
       const date = data.createdAt
         ? new Date(data.createdAt.seconds * 1000).toLocaleString("th-TH")
         : "-";
-
-      msg += `- ${date} (${type})\n`;
+      msg += `- ${date} (${data.type || "-"})\n`;
     });
 
     return safeReply(event.replyToken, msg);
@@ -225,9 +190,6 @@ async function showNotificationLogs(docRef, event) {
   }
 }
 
-/* =====================================================
-   MENU
-===================================================== */
 function buildMainMenu() {
   return `
 🤖 Spirit AI เมนูหลัก
@@ -240,9 +202,6 @@ help 1 - help 6 ดูรายละเอียด
 `;
 }
 
-/* =====================================================
-   DETAIL
-===================================================== */
 function buildModuleDetail(number) {
   switch (number) {
     case "1": return "📊 ระบบรายงานจังหวัด";
@@ -255,9 +214,6 @@ function buildModuleDetail(number) {
   }
 }
 
-/* =====================================================
-   STATUS
-===================================================== */
 function buildStatus(group) {
   let msg = "📊 สถานะระบบ\n\n";
   const modules = group.modules || {};
@@ -267,9 +223,6 @@ function buildStatus(group) {
   return msg;
 }
 
-/* =====================================================
-   UTIL
-===================================================== */
 function isHelpCommand(text) {
   const keywords = ["help","menu","เมนู","คำสั่ง","setup"];
   return keywords.some(k => text.includes(k));
