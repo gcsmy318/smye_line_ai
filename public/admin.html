@@ -1,59 +1,125 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
-  <title>LINE BOT Dashboard</title>
-  <style>
-    body { font-family: Arial; padding: 20px; }
-    .card { border:1px solid #ddd; padding:15px; margin-bottom:10px; }
-  </style>
+<meta charset="UTF-8">
+<title>Spirit AI Admin Panel</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+
+<style>
+body { font-family: Arial; background:#f5f5f5; padding:20px; }
+h1 { color:#333; }
+.card {
+  background:white;
+  padding:15px;
+  margin-bottom:15px;
+  border-radius:8px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+button {
+  padding:6px 10px;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+}
+.delete { background:#e74c3c; color:white; }
+.refresh { background:#3498db; color:white; margin-bottom:15px; }
+.module-on { color:green; }
+.module-off { color:red; }
+</style>
 </head>
 <body>
 
-<h2>📊 Dashboard</h2>
+<h1>🤖 Spirit AI Admin Panel</h1>
+
+<button class="refresh" onclick="loadGroups()">🔄 รีเฟรช</button>
 
 <div id="groups"></div>
 
-<script>
+<script type="module">
+
+// ============================
+// 🔥 ใส่ Firebase Config ของคุณ
+// ============================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ============================
+// โหลดกลุ่มทั้งหมด
+// ============================
 async function loadGroups() {
-  const res = await fetch("/api/admin/groups");
-  const groups = await res.json();
 
   const container = document.getElementById("groups");
+  container.innerHTML = "กำลังโหลด...";
 
-  groups.forEach(g => {
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `
-      <b>Group ID:</b> ${g.id}<br>
-      <b>Type:</b> ${g.type}<br>
-      <button onclick="viewStatus('${g.id}')">ดูสถานะ</button>
-      <div id="status-${g.id}"></div>
-    `;
-    container.appendChild(div);
-  });
-}
+  const snapshot = await getDocs(collection(db, "groups"));
 
-async function viewStatus(groupId) {
-  const res = await fetch(`/api/admin/province-status/${groupId}`);
-  const data = await res.json();
-
-  const container = document.getElementById(`status-${groupId}`);
-
-  if (!data.status) {
-    container.innerHTML = "ยังไม่มีข้อมูลสัปดาห์นี้";
+  if (snapshot.empty) {
+    container.innerHTML = "ยังไม่มีข้อมูลกลุ่ม";
     return;
   }
 
-  let html = "<ul>";
-  Object.keys(data.status).forEach(p => {
-    html += `<li>${p} : ${data.status[p] ? "ส่งแล้ว" : "ยังไม่ส่ง"}</li>`;
-  });
-  html += "</ul>";
+  container.innerHTML = "";
 
-  container.innerHTML = html;
+  snapshot.forEach(docSnap => {
+
+    const data = docSnap.data();
+    const groupId = docSnap.id;
+    const modules = data.modules || {};
+
+    const card = document.createElement("div");
+    card.className = "card";
+
+    let html = `<h3>📌 Group ID: ${groupId}</h3>`;
+    html += `<p><strong>Type:</strong> ${data.type || "-"}</p>`;
+    html += `<h4>Modules:</h4><ul>`;
+
+    Object.keys(modules).forEach(key => {
+      html += `<li>
+        ${key} :
+        <span class="${modules[key] ? 'module-on' : 'module-off'}">
+          ${modules[key] ? "✔ เปิดอยู่" : "✖ ปิดอยู่"}
+        </span>
+      </li>`;
+    });
+
+    html += "</ul>";
+
+    html += `<button class="delete" onclick="deleteGroup('${groupId}')">
+      🗑 ลบกลุ่มนี้
+    </button>`;
+
+    card.innerHTML = html;
+    container.appendChild(card);
+  });
 }
 
+// ============================
+// ลบกลุ่ม
+// ============================
+window.deleteGroup = async function(groupId) {
+
+  if (!confirm("ต้องการลบกลุ่มนี้จริงหรือไม่?")) return;
+
+  await deleteDoc(doc(db, "groups", groupId));
+
+  alert("ลบเรียบร้อยแล้ว");
+  loadGroups();
+}
+
+// โหลดครั้งแรก
 loadGroups();
+
 </script>
 
 </body>
