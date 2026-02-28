@@ -1,5 +1,5 @@
 const { getDB } = require("../config/firebase");
-const { reply } = require("../config/line");
+const { reply, getProfile } = require("../config/line");
 
 const province = require("./modules/provinceModule");
 const hatyai = require("./modules/hatyaiModule");
@@ -17,12 +17,14 @@ const DEFAULT_MODULES = {
   registry: false
 };
 
-/* ================================
+/* ========================================
    ENTRY POINT
-================================ */
+======================================== */
 async function handleMessage(event) {
+
   const db = getDB();
   const groupId = event.source.groupId || event.source.userId;
+  const userId = event.source.userId;
   const text = event.message.text.trim();
   const normalized = text.toLowerCase();
 
@@ -39,38 +41,41 @@ async function handleMessage(event) {
   const group = (await docRef.get()).data();
   const modules = group.modules || DEFAULT_MODULES;
 
-  /* ============================
-     HELP MENU (แบบตัวเลข)
-  ============================ */
+  /* ===============================
+     HELP MENU
+  ================================ */
   if (isHelpCommand(normalized)) {
     return reply(event.replyToken, buildMainMenu(group));
   }
 
-  /* ============================
-     เลือกเมนูด้วยตัวเลข
-  ============================ */
-  if (["1","2","3","4","5","6","7"].includes(normalized)) {
-    return handleNumberMenu(normalized, docRef, event);
+  /* ===============================
+     เซ็ต1 - เซ็ต7 (เฉพาะ Smile)
+  ================================ */
+  if (normalized.startsWith("เซ็ต")) {
+
+    const profile = await getProfile(userId);
+    const displayName = profile.displayName || "";
+
+    if (displayName !== "Smile") {
+      return reply(event.replyToken,
+        "⛔ คำสั่งนี้ใช้ได้เฉพาะผู้ดูแลระบบเท่านั้น"
+      );
+    }
+
+    return handleSetCommand(normalized, docRef, event);
   }
 
-  /* ============================
+  /* ===============================
      HELP DETAIL
-  ============================ */
+  ================================ */
   if (normalized.startsWith("help ")) {
     const moduleName = normalized.replace("help ", "").trim();
     return reply(event.replyToken, buildModuleDetail(moduleName));
   }
 
-  /* ============================
-     STATUS
-  ============================ */
-  if (normalized === "สถานะ" || normalized === "status") {
-    return reply(event.replyToken, buildStatus(group));
-  }
-
-  /* ============================
+  /* ===============================
      ROUTER
-  ============================ */
+  ================================ */
   if (modules.province && await province.handle(event, group)) return;
   if (modules.hatyai && await hatyai.handle(event, group)) return;
   if (modules.reminder && await reminder.handle(event, group)) return;
@@ -79,22 +84,25 @@ async function handleMessage(event) {
   if (modules.registry && await registry.handle(event, group)) return;
 }
 
-/* ================================
-   MENU HANDLER (ตัวเลข)
-================================ */
-async function handleNumberMenu(number, docRef, event) {
+/* ========================================
+   HANDLE SET COMMAND
+======================================== */
+async function handleSetCommand(text, docRef, event) {
 
-  const map = {
-    "1": "province",
-    "2": "hatyai",
-    "3": "reminder",
-    "4": "permanentNote",
-    "5": "serviceReport",
-    "6": "registry",
-    "7": "status"
+  const setMap = {
+    "เซ็ต1": "province",
+    "เซ็ต2": "hatyai",
+    "เซ็ต3": "reminder",
+    "เซ็ต4": "permanentNote",
+    "เซ็ต5": "serviceReport",
+    "เซ็ต6": "registry",
+    "เซ็ต7": "status"
   };
 
-  const moduleName = map[number];
+  const key = Object.keys(setMap).find(k => text.includes(k));
+  if (!key) return;
+
+  const moduleName = setMap[key];
 
   if (moduleName === "status") {
     const group = (await docRef.get()).data();
@@ -105,74 +113,76 @@ async function handleNumberMenu(number, docRef, event) {
     modules: { [moduleName]: true }
   }, { merge: true });
 
-  return reply(event.replyToken,
-    `✅ เปิดระบบ ${moduleName} แล้ว\nพิมพ์ help ${moduleName} เพื่อดูวิธีใช้แบบละเอียด`
+  return reply(
+    event.replyToken,
+    `✅ เปิดระบบ ${moduleName} แล้ว`
   );
 }
 
-/* ================================
+/* ========================================
    MAIN MENU
-================================ */
+======================================== */
 function buildMainMenu(group) {
+
   return `
 🤖 Spirit AI เมนูหลัก
+============================
 
-พิมพ์เลขเพื่อเปิดระบบ:
+พิมพ์ เซ็ต1 - เซ็ต7 เพื่อเปิดระบบ (ผู้ดูแลเท่านั้น)
 
-1️⃣ ระบบรายงานจังหวัด
-   ➜ แจ้งเตือนส่งสถิติ 6 จังหวัด
+เซ็ต1️⃣  ระบบรายงานจังหวัด
+ติดตามการส่งสถิติ 6 จังหวัด
+แจ้งเตือนอัตโนมัติทุกสัปดาห์
 
-2️⃣ ระบบสถิติหาดใหญ่
-   ➜ รายงาน pro=20 stb=10
+เซ็ต2️⃣  ระบบสถิติหาดใหญ่
+กรอก pro=20 stb=10 ได้ทันที
+สรุปตัวเลขแบบเรียลไทม์
 
-3️⃣ ระบบแจ้งเตือนล่วงหน้า
-   ➜ เตือนก่อนงาน 3 วัน
+เซ็ต3️⃣  ระบบแจ้งเตือนล่วงหน้า
+บันทึกวันงาน ระบบเตือนก่อน 3 วัน
+ไม่พลาดกิจกรรมสำคัญ
 
-4️⃣ ระบบบันทึกถาวร
-   ➜ เก็บข้อมูลลา / บันทึกสำคัญ
+เซ็ต4️⃣  ระบบบันทึกถาวร
+เก็บข้อมูลลาและบันทึกสำคัญ
+ดูย้อนหลังได้เสมอ
 
-5️⃣ ระบบรายงานการรับใช้
-   ➜ บันทึกสิ่งที่ทำในแต่ละสัปดาห์
+เซ็ต5️⃣  ระบบรายงานการรับใช้
+บันทึกสิ่งที่ทำแต่ละสัปดาห์
+สร้างวัฒนธรรมการรับใช้
 
-6️⃣ ระบบทะเบียนสมาชิก
-   ➜ บันทึกวันเกิด + เบอร์โทร
+เซ็ต6️⃣  ระบบทะเบียนสมาชิก
+เก็บวันเกิด + เบอร์โทร
+ค้นหาตามเดือนเกิดได้
 
-7️⃣ ดูสถานะระบบ
+เซ็ต7️⃣  ดูสถานะระบบ
+ตรวจสอบว่ากลุ่มนี้เปิดอะไรอยู่
 
 พิมพ์ help province
 เพื่อดูรายละเอียดแบบเต็ม
 `;
 }
 
-/* ================================
+/* ========================================
    DETAIL HELP
-================================ */
+======================================== */
 function buildModuleDetail(moduleName) {
+
   switch (moduleName) {
+
     case "province":
       return `
-📊 ระบบรายงานจังหวัด (ละเอียด)
+📊 ระบบรายงานจังหวัด
 
-แจ้งเตือน:
-อา จ อ ศ เวลา 08:00
-
-จังหวัด:
-สงขลา สตูล ปัตตานี ยะลา นราธิวาส พัทลุง
-
-วิธีส่ง:
-สงขลา ส่งสถิติแล้ว
+แจ้งเตือน: อา จ อ ศ 08:00
+พิมพ์: สงขลา ส่งสถิติแล้ว
 `;
 
     case "hatyai":
       return `
-📊 ระบบสถิติหาดใหญ่ (ละเอียด)
+📊 ระบบสถิติหาดใหญ่
 
-แจ้งเตือน:
-ทุกวันอาทิตย์ 13:00
-
-วิธีส่ง:
-pro=20
-pro=20 stb=10
+แจ้งเตือน: อาทิตย์ 13:00
+พิมพ์: pro=20 stb=10
 `;
 
     case "reminder":
@@ -181,8 +191,6 @@ pro=20 stb=10
 
 พิมพ์:
 แจ้งเตือน ค่าย 1/3/2569
-
-ระบบจะแจ้งเตือนล่วงหน้า 3 วัน
 `;
 
     case "permanentNote":
@@ -191,9 +199,6 @@ pro=20 stb=10
 
 พิมพ์:
 บันทึกลา สมาย 12/03/2026
-
-ดูทั้งหมด:
-บันทึกถาวร
 `;
 
     case "serviceReport":
@@ -202,9 +207,6 @@ pro=20 stb=10
 
 พิมพ์:
 รายงานการรับใช้ วันนี้ไปดูแลคน
-
-ดูรายงาน:
-บันทึกรายงานการรับใช้
 `;
 
     case "registry":
@@ -212,10 +214,7 @@ pro=20 stb=10
 👤 ระบบทะเบียนสมาชิก
 
 พิมพ์:
-ลงทะเบียน สมาย 19/10/1993 เบอร์โทร...
-
-ค้นหา:
-ขอข้อมูลทะเบียนเดือน10
+ลงทะเบียน สมาย 19/10/1993 เบอร์...
 `;
 
     default:
@@ -223,30 +222,27 @@ pro=20 stb=10
   }
 }
 
-/* ================================
+/* ========================================
    STATUS
-================================ */
+======================================== */
 function buildStatus(group) {
-  let msg = "📊 สถานะกลุ่มนี้\n\n";
+
+  let msg = "📊 สถานะระบบในกลุ่มนี้\n\n";
+
   Object.keys(group.modules).forEach(k => {
     msg += group.modules[k]
       ? `✔ ${k}\n`
       : `✖ ${k}\n`;
   });
+
   return msg;
 }
 
-/* ================================
+/* ========================================
    UTIL
-================================ */
+======================================== */
 function isHelpCommand(text) {
-  const keywords = [
-    "help",
-    "menu",
-    "เมนู",
-    "คำสั่ง",
-    "setup"
-  ];
+  const keywords = ["help","menu","เมนู","คำสั่ง","setup"];
   return keywords.some(k => text.includes(k));
 }
 
