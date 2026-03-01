@@ -8,31 +8,34 @@ function startSchedulers() {
   if (started) return;
   started = true;
 
-  console.log("🔥 Reminder Scheduler Started (Interval Mode)");
+  console.log("🔥 Reminder Scheduler Started (Thai Time Mode)");
 
   setInterval(() => {
 
-    const now = new Date();
+    const thaiNow = getThaiNow();
 
-    console.log("🟢 Interval tick:", now.toLocaleString("th-TH"));
+    console.log("🟢 Interval tick (TH):",
+      thaiNow.toLocaleString("th-TH"));
 
-    runReminderLogic().catch(err => {
-      console.error("Scheduler Error:", err);
-    });
+    runReminderLogic(thaiNow)
+      .catch(err => console.error("Scheduler Error:", err));
 
   }, 60000);
-
 }
 
-async function runReminderLogic() {
+/* =====================================================
+   MAIN LOGIC
+===================================================== */
 
-  const thaiHour = getThaiHour();
+async function runReminderLogic(thaiNow) {
 
+  const thaiHour = thaiNow.getHours();
+
+  // ยิงตั้งแต่ 07:00 เป็นต้นไป
   if (thaiHour < 7) return;
 
   const db = getDB();
-  const todayKey = getTodayKey();
-  const today = new Date();
+  const todayKey = getThaiDateKey(thaiNow);
 
   const snapshot = await db.collection("reminders").get();
 
@@ -52,7 +55,7 @@ async function runReminderLogic() {
     const schedule = parseDate(data.scheduleDate);
     if (!schedule) continue;
 
-    const diff = diffInDays(schedule, today);
+    const diff = diffInDays(schedule, thaiNow);
 
     let type = null;
 
@@ -76,7 +79,10 @@ async function runReminderLogic() {
     const logRef = db.collection("schedulerLogs").doc(logId);
     const logDoc = await logRef.get();
 
-    if (logDoc.exists) continue;
+    if (logDoc.exists) {
+      console.log("Already sent today:", groupId);
+      continue;
+    }
 
     const items = grouped[groupId];
 
@@ -111,35 +117,45 @@ async function runReminderLogic() {
       }
     }
   }
+}
 
+/* =====================================================
+   TIME HELPERS
+===================================================== */
+
+function getThaiNow() {
+
+  const thaiTimeString = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Bangkok"
+  });
+
+  return new Date(thaiTimeString);
+}
+
+function getThaiDateKey(thaiNow) {
+
+  return thaiNow.toLocaleDateString("sv-SE");
 }
 
 function parseDate(str) {
+
   const parts = str.split("/");
   if (parts.length !== 3) return null;
+
   const [d, m, y] = parts.map(Number);
   const year = y > 2500 ? y - 543 : y;
+
   return new Date(year, m - 1, d);
 }
 
 function diffInDays(a, b) {
+
   const dateA = new Date(a.getFullYear(), a.getMonth(), a.getDate());
   const dateB = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+
   const diffTime = dateA.getTime() - dateB.getTime();
+
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
-}
-
-function getTodayKey() {
-  return new Date().toLocaleDateString("sv-SE", {
-    timeZone: "Asia/Bangkok"
-  });
-}
-
-function getThaiHour() {
-  const thaiTime = new Date().toLocaleString("en-US", {
-    timeZone: "Asia/Bangkok"
-  });
-  return new Date(thaiTime).getHours();
 }
 
 module.exports = { startSchedulers };
