@@ -2,9 +2,7 @@ const cron = require("node-cron");
 const { getDB } = require("../../config/firebase");
 const { client } = require("../../config/line");
 
-/* =====================================================
-   🇹🇭 เวลาไทย
-===================================================== */
+/* ================= TIME ================= */
 
 function getThaiNow() {
   return new Date(
@@ -17,22 +15,19 @@ function getThaiDateString() {
 }
 
 function isReportDay(date) {
-  const day = date.getDay(); // 0=อา 1=จ 2=อ 5=ศ
-  return [0, 1, 2, 5].includes(day);
+  return [0, 1, 2, 5].includes(date.getDay());
 }
 
-/* =====================================================
-   🔔 REMINDER (7 โมงเช้า)
-===================================================== */
+/* ================= REMINDER ================= */
 
 async function handleReminders() {
 
   try {
 
     const db = getDB();
-    const nowThai = getThaiNow();
-    const todayStr = getThaiDateString();
+    if (!db) return;
 
+    const nowThai = getThaiNow();
     const snapshot = await db.collection("reminders").get();
 
     const groupMap = {};
@@ -52,14 +47,11 @@ async function handleReminders() {
         groupMap[data.groupId] = [];
       }
 
-      if (diffDays === 0) {
+      if (diffDays === 0)
         groupMap[data.groupId].push(`📌 วันนี้: ${data.title}`);
-      }
 
-      if (diffDays === 3) {
+      if (diffDays === 3)
         groupMap[data.groupId].push(`⏳ อีก 3 วัน: ${data.title}`);
-      }
-
     });
 
     for (const groupId in groupMap) {
@@ -72,14 +64,12 @@ async function handleReminders() {
         msg += `${i + 1}. ${m}\n`;
       });
 
-      msg += `\n⏰ แจ้งเมื่อ: ${nowThai.toLocaleTimeString("th-TH")}`;
-
       await client.pushMessage(groupId, {
         type: "text",
         text: msg
       });
 
-      console.log("📤 Reminder sent to:", groupId);
+      console.log("📤 Reminder sent:", groupId);
     }
 
   } catch (err) {
@@ -87,26 +77,26 @@ async function handleReminders() {
   }
 }
 
-/* =====================================================
-   📢 PROVINCE (8 โมง อา จ อ ศ)
-===================================================== */
+/* ================= PROVINCE ================= */
 
 async function handleProvinceReminder() {
 
   try {
 
     const db = getDB();
-    const today = getThaiNow();
-    const todayStr = getThaiDateString();
+    if (!db) return;
 
+    const today = getThaiNow();
     if (!isReportDay(today)) return;
 
-    const provinceDoc = await db
+    const todayStr = getThaiDateString();
+
+    const doc = await db
       .collection("weeklyProvinceStats")
       .doc(todayStr)
       .get();
 
-    if (provinceDoc.exists) return;
+    if (doc.exists) return;
 
     const groups = await db.collection("groups").get();
 
@@ -121,7 +111,7 @@ async function handleProvinceReminder() {
         text: "📢 วันนี้ยังไม่มีจังหวัดส่งสถิติ"
       });
 
-      console.log("📤 Province reminder sent to:", g.id);
+      console.log("📤 Province reminder sent:", g.id);
     }
 
   } catch (err) {
@@ -129,38 +119,26 @@ async function handleProvinceReminder() {
   }
 }
 
-/* =====================================================
-   🚀 START SCHEDULER
-===================================================== */
+/* ================= START ================= */
 
 function startScheduler() {
 
   console.log("⏰ Master Scheduler Started");
 
-  /* ===============================
-     7:00 REMINDER
-  ================================ */
   cron.schedule("0 7 * * *", async () => {
-    console.log("🔔 Running 7AM Reminder");
+    console.log("🔔 7AM Reminder");
     await handleReminders();
   }, { timezone: "Asia/Bangkok" });
 
-  /* ===============================
-     8:00 PROVINCE (อา จ อ ศ)
-  ================================ */
   cron.schedule("0 8 * * 0,1,2,5", async () => {
-    console.log("📢 Running 8AM Province Reminder");
+    console.log("📢 8AM Province");
     await handleProvinceReminder();
   }, { timezone: "Asia/Bangkok" });
 
-  /* ===============================
-     RUN ON STARTUP
-  ================================ */
   setTimeout(async () => {
-    console.log("🚀 Startup Check Running...");
+    console.log("🚀 Startup Check");
     await handleReminders();
     await handleProvinceReminder();
-    console.log("✅ Startup Check Complete");
   }, 5000);
 }
 

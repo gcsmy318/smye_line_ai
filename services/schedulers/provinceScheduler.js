@@ -1,5 +1,5 @@
 const cron = require("node-cron");
-const { getDB } = require("../config/firebase");
+const { getDB } = require("../../config/firebase");
 const { push } = require("../config/line");
 const { buildProvinceMessage } = require("./provinceService");
 

@@ -7,52 +7,37 @@ const { middleware } = require("@line/bot-sdk");
 
 const { initFirebase } = require("./config/firebase");
 const { handleMessage } = require("./services/groupService");
+const { startScheduler } = require("./services/schedulers/masterScheduler");
 const { startGeneralScheduler } = require("./services/schedulers/generalScheduler");
 
 const app = express();
 
 /* =====================================================
-   🔥 START SERVER
+   🚀 START SERVER
 ===================================================== */
 
 console.log("🚀 Starting server...");
 
-// 🔥 ต้อง init Firebase ก่อน
+/* 🔥 1️⃣ Initialize Firebase ก่อน */
 initFirebase();
 console.log("✅ Firebase initialized");
 
-/* =====================================================
-   🔥 START GENERAL SCHEDULER
-===================================================== */
-
+/* 🔥 2️⃣ Start General Scheduler */
 startGeneralScheduler();
 console.log("⏰ General Scheduler started");
 
-/* =====================================================
-   🔥 LOAD MASTER SCHEDULER
-===================================================== */
-
-try {
-  console.log("🔄 Loading Master Scheduler...");
-
-  const { startScheduler } = require("./services/schedulers/masterScheduler");
-
-  startScheduler();
-
-  console.log("✅ Master Scheduler loaded successfully");
-
-} catch (err) {
-  console.error("❌ Master Scheduler failed to load:", err);
-}
+/* 🔥 3️⃣ Start Master Scheduler */
+startScheduler();
+console.log("⏰ Master Scheduler started");
 
 /* =====================================================
-   🔥 STATIC
+   📂 STATIC FILES
 ===================================================== */
 
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =====================================================
-   🔥 WEBHOOK
+   📩 LINE WEBHOOK
 ===================================================== */
 
 app.post(
@@ -80,7 +65,7 @@ app.post(
 );
 
 /* =====================================================
-   🔥 HEALTH CHECK
+   🩺 HEALTH CHECK (กัน Render Sleep)
 ===================================================== */
 
 app.get("/health", (req, res) => {
@@ -88,7 +73,7 @@ app.get("/health", (req, res) => {
 });
 
 /* =====================================================
-   🔥 START LISTEN
+   🌐 START LISTEN
 ===================================================== */
 
 const PORT = process.env.PORT || 8080;

@@ -1,71 +1,59 @@
+const cron = require("node-cron");
 const { getDB } = require("../../config/firebase");
-const { reply } = require("../../config/line");
+const { client } = require("../../config/line");
 
-const DEFAULT_SETTINGS = {
-  fri12: true,
-  sun9: true,
-  sun1130: true,
-  mon12: true,
-  fri8: true,
-  sat8: true,
-  sat15: true
-};
+async function broadcast(message, settingKey) {
 
-const COMMAND_MAP = {
-  "ศุกร์12": "fri12",
-  "อาทิตย์9": "sun9",
-  "อาทิตย์1130": "sun1130",
-  "โปรแกรมจันทร์": "mon12",
-  "ศุกร์8": "fri8",
-  "เสาร์8": "sat8",
-  "เสาร์15": "sat15"
-};
-
-async function handle(event, group) {
-
-  const text = event.message.text.trim();
   const db = getDB();
-  const groupId = event.source.groupId || event.source.userId;
+  if (!db) return;
 
-  const openMatch = text.match(/^เปิด\s+(.+)/);
-  const closeMatch = text.match(/^ปิด\s+(.+)/);
+  const groups = await db.collection("groups").get();
 
-  if (!openMatch && !closeMatch && text !== "ดูตาราง") return false;
+  for (const g of groups.docs) {
 
-  const docRef = db.collection("groups").doc(groupId);
-  const doc = await docRef.get();
-  const data = doc.data() || {};
+    const data = g.data();
 
-  let settings = data.generalSettings || { ...DEFAULT_SETTINGS };
+    if (!data.modules?.general) continue;
 
-  if (text === "ดูตาราง") {
-    let msg = "📅 ตารางแจ้งเตือนทั่วไป\n\n";
-    Object.keys(DEFAULT_SETTINGS).forEach(key => {
-      msg += settings[key] ? `✔ ${key}\n` : `✖ ${key}\n`;
+    const settings = data.generalSettings || {};
+    if (settings[settingKey] === false) continue;
+
+    await client.pushMessage(g.id, {
+      type: "text",
+      text: message
     });
-    await reply(event.replyToken, msg);
-    return true;
+
+    console.log("📤 General sent:", settingKey, g.id);
   }
-
-  const command = (openMatch || closeMatch)[1].trim();
-  const key = COMMAND_MAP[command];
-
-  if (!key) {
-    await reply(event.replyToken, "ไม่พบรายการนี้");
-    return true;
-  }
-
-  settings[key] = !!openMatch;
-
-  await docRef.set({
-    generalSettings: settings
-  }, { merge: true });
-
-  await reply(event.replyToken,
-    `${openMatch ? "✅ เปิด" : "❌ ปิด"} ${command} เรียบร้อย`
-  );
-
-  return true;
 }
 
-module.exports = { handle };
+function startGeneralScheduler() {
+
+  console.log("⏰ General Scheduler Started");
+
+  cron.schedule("0 12 * * 5", async () => {
+    await broadcast("ซ้อมนมัสการ 16.30 นะครับ", "fri12");
+  }, { timezone: "Asia/Bangkok" });
+
+  cron.schedule("0 9 * * 0", async () => {
+    await broadcast("แจ้งเตือน hope channel มีไหมครับ ???", "sun9");
+  }, { timezone: "Asia/Bangkok" });
+
+  cron.schedule("30 11 * * 0", async () => {
+    await broadcast("เพลงตอบสนอง เพลงอะไร ???", "sun1130");
+  }, { timezone: "Asia/Bangkok" });
+
+  cron.schedule("0 12 * * 1", async () => {
+    await broadcast("โปรแกรมวันอาทิตย์...", "mon12");
+  }, { timezone: "Asia/Bangkok" });
+
+  cron.schedule("0 8 * * 5,6", async () => {
+    await broadcast("นัดประชุม 10.00-12.00", "fri8");
+  }, { timezone: "Asia/Bangkok" });
+
+  cron.schedule("0 15 * * 6", async () => {
+    await broadcast("ชั้นสร้าง เจอกัน 18.00น.", "sat15");
+  }, { timezone: "Asia/Bangkok" });
+}
+
+module.exports = { startGeneralScheduler };
