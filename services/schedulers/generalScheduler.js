@@ -3,80 +3,53 @@ const { getDB } = require("../../config/firebase");
 const { client } = require("../../config/line");
 
 /* =====================================================
-   📤 Broadcast แบบเช็ค setting
+   UTIL: คำนวณวันอาทิตย์ถัดไป
 ===================================================== */
+function getNextSunday() {
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sunday
+  const diff = day === 0 ? 7 : 7 - day;
+  const nextSunday = new Date(now);
+  nextSunday.setDate(now.getDate() + diff);
+  return nextSunday;
+}
 
-async function broadcast(message, settingKey) {
-
-  try {
-
-    const db = getDB();
-    const groups = await db.collection("groups").get();
-
-    for (const g of groups.docs) {
-
-      const data = g.data();
-
-      // ต้องเปิด module general ก่อน
-      if (!data.modules?.general) continue;
-
-      const settings = data.generalSettings || {};
-
-      // ถ้า setting ถูกปิดไว้
-      if (settings[settingKey] === false) continue;
-
-      await client.pushMessage(g.id, {
-        type: "text",
-        text: message
-      });
-
-      console.log(`📤 Sent ${settingKey} to group: ${g.id}`);
-    }
-
-  } catch (err) {
-    console.error("General Broadcast Error:", err);
-  }
+function formatThaiDate(date) {
+  const day = date.getDate();
+  const month = date.toLocaleDateString("th-TH", { month: "short" });
+  const year = date.getFullYear() + 543; // พ.ศ.
+  return `${day} ${month} ${year}`;
 }
 
 /* =====================================================
-   🔔 START GENERAL SCHEDULER
+   TEMPLATE ข้อความ
 ===================================================== */
+function buildFriday12() {
+  return `🔔 แจ้งเตือนวันนี้
 
-function startGeneralScheduler() {
+ซ้อมนมัสการ 16.30 นะครับ`;
+}
 
-  console.log("⏰ General Scheduler Started");
+function buildSunday9() {
+  return `🔔 แจ้งเตือนเช้าวันอาทิตย์
 
-  /* ===============================
-     ศุกร์ 12:00
-  ================================ */
-  cron.schedule("0 12 * * 5", async () => {
-    await broadcast("ซ้อมนมัสการ 16.30 นะครับ", "fri12");
-  }, { timezone: "Asia/Bangkok" });
+hope channel มีไหมครับ ???
+เพลงตอบสนอง เพลงอะไร ???`;
+}
 
-  /* ===============================
-     อาทิตย์ 09:00
-  ================================ */
-  cron.schedule("0 9 * * 0", async () => {
-    await broadcast(
-      "แจ้งเตือน hope channel มีไหมครับ ???\nเพลงตอบสนอง เพลงอะไร ???",
-      "sun9"
-    );
-  }, { timezone: "Asia/Bangkok" });
+function buildSunday1130() {
+  return `🎵 เตรียมก่อนเทศนา
 
-  /* ===============================
-     อาทิตย์ 11:30
-  ================================ */
-  cron.schedule("30 11 * * 0", async () => {
-    await broadcast("เพลงตอบสนอง เพลงอะไร ???", "sun1130");
-  }, { timezone: "Asia/Bangkok" });
+เพลงตอบสนอง เพลงอะไร ???`;
+}
 
-  /* ===============================
-     จันทร์ 12:00 (โปรแกรมใหญ่)
-  ================================ */
-  cron.schedule("0 12 * * 1", async () => {
+function buildMondayProgram() {
 
-    const message = `
-โปรแกรมวันอาทิตย์
+  const sunday = getNextSunday();
+  const dateStr = formatThaiDate(sunday);
+
+  return `---------------------------------------
+โปรแกรมวันอาทิตย์ ${dateStr}
 **************************
 1. teaser Sustainable
 2. อธิฐาน นมัสการ -
@@ -96,58 +69,109 @@ function startGeneralScheduler() {
 11. เทศนา โดย -
 12. เพลงตอบสนอง -
 13. อธิฐานปิด
-
 ******งานเบื้องหลัง*******
 ผู้จัดการรอบ -
 mixer / mic -
-Support คอมฯ :
+Support คอมฯ : -
 BS :
 โต๊ะต้อนรับ -
 คจ.เด็ก -
-
 *****งานนมัสการ********
 กีต้าไฟฟ้า -
 กลอง -
 เบส -
 คีบอร์ด -
 คอรัส -
-**********************
-`;
+**********************`;
+}
 
-    await broadcast(message, "mon12");
-
-  }, { timezone: "Asia/Bangkok" });
-
-  /* ===============================
-     ศุกร์ และ เสาร์ 08:00
-  ================================ */
-  cron.schedule("0 8 * * 5,6", async () => {
-
-    const message = `
-พรุ่งนี้วันเสาร์ขออนุญาตนัดหมายประชุมเวลา 10.00-12:00 น. ครับ
+function buildMeeting() {
+  return `----------------------------------
+พรุ่งนี้วันเสาร์ขออนุญาตนัดหมายประชุม
+เวลา 10.00-12:00 น. ครับ
 
 ลงชื่อประชุม
 1.
 2.
 3.
 
-ลาประชุม ( ส่งรายงานในกลุ่ม )
+ลาประชุม (ส่งรายงานในกลุ่ม)
 1.
 2.
 3.
-`;
+----------------------------------`;
+}
 
-    await broadcast(message, "fri8"); // ใช้ fri8 เป็น key หลัก
+function buildSaturday15() {
+  return `📣 แจ้งเตือน
 
+ชั้นสร้าง เจอกัน 18.00 น.`;
+}
+
+/* =====================================================
+   BROADCAST
+===================================================== */
+async function broadcast(message, settingKey) {
+
+  const db = getDB();
+  if (!db) return;
+
+  const groups = await db.collection("groups").get();
+
+  for (const g of groups.docs) {
+
+    const data = g.data();
+
+    if (!data.modules?.general) continue;
+
+    const settings = data.generalSettings || {};
+    if (settings[settingKey] === false) continue;
+
+    await client.pushMessage(g.id, {
+      type: "text",
+      text: message
+    });
+
+    console.log("📤 General sent:", settingKey, g.id);
+  }
+}
+
+/* =====================================================
+   START SCHEDULER
+===================================================== */
+function startGeneralScheduler() {
+
+  console.log("⏰ General Scheduler Started");
+
+  // ศุกร์ 12:00
+  cron.schedule("0 12 * * 5", async () => {
+    await broadcast(buildFriday12(), "fri12");
   }, { timezone: "Asia/Bangkok" });
 
-  /* ===============================
-     เสาร์ 15:00
-  ================================ */
+  // อาทิตย์ 09:00
+  cron.schedule("0 9 * * 0", async () => {
+    await broadcast(buildSunday9(), "sun9");
+  }, { timezone: "Asia/Bangkok" });
+
+  // อาทิตย์ 11:30
+  cron.schedule("30 11 * * 0", async () => {
+    await broadcast(buildSunday1130(), "sun1130");
+  }, { timezone: "Asia/Bangkok" });
+
+  // จันทร์ 12:00
+  cron.schedule("0 12 * * 1", async () => {
+    await broadcast(buildMondayProgram(), "mon12");
+  }, { timezone: "Asia/Bangkok" });
+
+  // ศุกร์ และ เสาร์ 08:00
+  cron.schedule("0 8 * * 5,6", async () => {
+    await broadcast(buildMeeting(), "fri8");
+  }, { timezone: "Asia/Bangkok" });
+
+  // เสาร์ 15:00
   cron.schedule("0 15 * * 6", async () => {
-    await broadcast("ชั้นสร้าง เจอกัน 18.00น.", "sat15");
+    await broadcast(buildSaturday15(), "sat15");
   }, { timezone: "Asia/Bangkok" });
-
 }
 
 module.exports = { startGeneralScheduler };
