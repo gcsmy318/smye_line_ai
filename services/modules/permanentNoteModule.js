@@ -1,30 +1,58 @@
-
 const { getDB } = require("../../config/firebase");
 const { reply } = require("../../config/line");
 const { v4: uuidv4 } = require("uuid");
 
 async function handle(event) {
-  const text = event.message.text.trim();
-  const groupId = event.source.groupId;
 
-  if (text.startsWith("บันทึกลา")) {
-    const note = text.replace("บันทึกลา","").trim();
+  const text = event.message.text.trim();
+  const groupId = event.source.groupId || event.source.userId;
+  const db = getDB();
+
+  /* ===============================
+     บันทึก
+     ตัวอย่าง:
+     บันทึก วันนี้ประชุม 18.00
+  ================================ */
+  if (text.startsWith("บันทึก")) {
+
+    const content = text.replace("บันทึก","").trim();
+    if (!content) {
+      return reply(event.replyToken, "❗ กรุณาพิมพ์ข้อความหลังคำว่า บันทึก");
+    }
+
     const id = uuidv4().slice(0,5);
 
-    await getDB().collection("permanentNotes").doc(id).set({
-      groupId, note
+    await db.collection("permanentNotes").doc(id).set({
+      id,
+      groupId,
+      content,
+      createdAt: new Date()
     });
 
-    return reply(event.replyToken, `บันทึกแล้ว ID ${id}`);
+    return reply(event.replyToken, `✅ บันทึกเรียบร้อย (ID: ${id})`);
   }
 
-  if (text === "บันทึกถาวร") {
-    const snap = await getDB().collection("permanentNotes")
-      .where("groupId","==",groupId).get();
+  /* ===============================
+     แสดงทั้งหมด
+     คำสั่ง:
+     ดูบันทึก
+  ================================ */
+  if (text === "ดูบันทึก") {
 
-    let msg = "บันทึกถาวร\n";
+    const snap = await db.collection("permanentNotes")
+      .where("groupId","==",groupId)
+      .orderBy("createdAt","desc")
+      .get();
+
+    if (snap.empty) {
+      return reply(event.replyToken, "📭 ยังไม่มีบันทึก");
+    }
+
+    let msg = "📝 บันทึกทั้งหมด\n\n";
+
     snap.forEach(doc => {
-      msg += `- ${doc.data().note}\n`;
+      const data = doc.data();
+      msg += `• ${data.content}\n`;
     });
 
     return reply(event.replyToken, msg);
