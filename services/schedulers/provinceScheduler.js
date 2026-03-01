@@ -55,8 +55,9 @@ function startProvinceScheduler() {
 }
 
 function getTodayKey() {
-  const now = new Date();
-  return now.toISOString().slice(0, 10);
+  return new Date().toLocaleDateString("sv-SE", {
+    timeZone: "Asia/Bangkok"
+  });
 }
 
 module.exports = { startProvinceScheduler };
