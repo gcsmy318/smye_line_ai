@@ -43,7 +43,6 @@ async function handleMessage(event) {
 
     if (!event || !event.message || event.message.type !== "text") return;
 
-    const db = getDB();
     const groupId = event.source?.groupId || event.source?.userId;
     if (!groupId) return;
 
@@ -52,11 +51,28 @@ async function handleMessage(event) {
 
     const normalized = text.toLowerCase();
 
+    /* ===============================
+       HELP DETAIL (ไม่ต้องใช้ DB)
+    ================================ */
+    const helpMatch = normalized.match(/^help\s*([1-8])$/);
+    if (helpMatch) {
+      const number = helpMatch[1];
+      return safeReply(event.replyToken, buildModuleDetail(number));
+    }
+
+    if (isHelpCommand(normalized)) {
+      return safeReply(event.replyToken, buildMainMenu());
+    }
+
+    /* ===============================
+       หลังจากนี้ค่อยเรียก DB
+    ================================ */
+    const db = getDB();
+
     const docRef = db.collection("groups").doc(groupId);
     const doc = await docRef.get();
 
     if (!doc.exists) {
-      console.log("📁 Creating new group:", groupId);
       await docRef.set({
         type: "general",
         modules: { ...DEFAULT_MODULES }
@@ -66,63 +82,8 @@ async function handleMessage(event) {
     const group = (await docRef.get()).data() || {};
     const modules = group.modules || DEFAULT_MODULES;
 
-    /* ===============================
-       HELP DETAIL
-    ================================ */
-    const helpMatch = normalized.match(/^help\s*([1-8])$/);
-    if (helpMatch) {
-      const number = helpMatch[1];
-      return safeReply(event.replyToken, buildModuleDetail(number));
-    }
+    /* ===== ต่อด้วย logic เดิมทั้งหมด ===== */
 
-    /* ===============================
-       HELP MENU
-    ================================ */
-    if (isHelpCommand(normalized)) {
-      return safeReply(event.replyToken, buildMainMenu());
-    }
-
-    /* ===============================
-       ดูแจ้งเตือน
-    ================================ */
-    if (normalized === "ดูแจ้งเตือน") {
-      return showReminders(db, groupId, event);
-    }
-
-    /* ===============================
-       ดูรายงานแจ้งเตือน
-    ================================ */
-    if (normalized === "ดูรายงานแจ้งเตือน") {
-      return showNotificationLogs(db, groupId, event);
-    }
-
-    /* ===============================
-       เปิดระบบ
-    ================================ */
-    if (normalized.startsWith("smile")) {
-
-      const command = normalized.replace("smile", "").trim();
-
-      if (command.startsWith("เซ็ต")) {
-        return handleSetCommand(command, docRef, event);
-      }
-    }
-
-    /* ===============================
-       ROUTER MODULE
-    ================================ */
-    try { if (modules.province && await province.handle(event, group)) return; } catch(e){ console.error(e); }
-    try { if (modules.hatyai && await hatyai.handle(event, group)) return; } catch(e){ console.error(e); }
-    try { if (modules.reminder && await reminder.handle(event, group)) return; } catch(e){ console.error(e); }
-    try { if (modules.permanentNote && await note.handle(event, group)) return; } catch(e){ console.error(e); }
-    try { if (modules.serviceReport && await report.handle(event, group)) return; } catch(e){ console.error(e); }
-    try { if (modules.registry && await registry.handle(event, group)) return; } catch(e){ console.error(e); }
-    try { if (modules.general && await general.handle(event, group)) return; } catch(e){ console.error(e); }
-
-  } catch (error) {
-    console.error("Fatal Error:", error);
-  }
-}
 
 /* =====================================================
    HANDLE SET COMMAND
