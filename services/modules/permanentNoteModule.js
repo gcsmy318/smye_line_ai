@@ -1,58 +1,57 @@
 const { getDB } = require("../../config/firebase");
 const { reply } = require("../../config/line");
-const { v4: uuidv4 } = require("uuid");
 
+/* =========================================
+   HANDLE
+========================================= */
 async function handle(event) {
 
   const text = event.message.text.trim();
   const groupId = event.source.groupId || event.source.userId;
   const db = getDB();
 
+  const collection = db.collection("permanentNotes");
+
   /* ===============================
      บันทึก
      ตัวอย่าง:
-     บันทึก วันนี้ประชุม 18.00
+     บันทึก วันนี้ประชุมทีม
   ================================ */
-  if (text.startsWith("บันทึก")) {
+  if (text.startsWith("บันทึก ")) {
 
-    const content = text.replace("บันทึก","").trim();
-    if (!content) {
-      return reply(event.replyToken, "❗ กรุณาพิมพ์ข้อความหลังคำว่า บันทึก");
-    }
+    const content = text.replace("บันทึก", "").trim();
+    if (!content) return false;
 
-    const id = uuidv4().slice(0,5);
-
-    await db.collection("permanentNotes").doc(id).set({
-      id,
+    await collection.add({
       groupId,
       content,
       createdAt: new Date()
     });
 
-    return reply(event.replyToken, `✅ บันทึกเรียบร้อย (ID: ${id})`);
+    return reply(event.replyToken, "✅ บันทึกเรียบร้อยแล้ว");
   }
 
   /* ===============================
-     แสดงทั้งหมด
-     คำสั่ง:
      ดูบันทึก
   ================================ */
   if (text === "ดูบันทึก") {
 
-    const snap = await db.collection("permanentNotes")
-      .where("groupId","==",groupId)
-      .orderBy("createdAt","desc")
+    const snapshot = await collection
+      .where("groupId", "==", groupId)
+      .orderBy("createdAt", "desc")
+      .limit(20)
       .get();
 
-    if (snap.empty) {
+    if (snapshot.empty) {
       return reply(event.replyToken, "📭 ยังไม่มีบันทึก");
     }
 
-    let msg = "📝 บันทึกทั้งหมด\n\n";
+    let msg = "📝 บันทึกย้อนหลัง\n\n";
 
-    snap.forEach(doc => {
+    snapshot.forEach((doc, index) => {
       const data = doc.data();
-      msg += `• ${data.content}\n`;
+      const date = new Date(data.createdAt);
+      msg += `${index + 1}. ${date.toLocaleDateString("th-TH")} - ${data.content}\n`;
     });
 
     return reply(event.replyToken, msg);
