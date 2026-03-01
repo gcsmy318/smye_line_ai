@@ -1,98 +1,118 @@
-require("dotenv").config();
-
-const express = require("express");
-const bodyParser = require("body-parser");
-const path = require("path");
-const { middleware } = require("@line/bot-sdk");
-
-const { initFirebase } = require("./config/firebase");
-const { handleMessage } = require("./services/groupService");
-
-const app = express();
+const { db } = require("../../config/firebase");
+const { client } = require("../../config/line");
 
 /* =====================================================
-   🔥 START SERVER
+   🔥 เวลาไทย (Asia/Bangkok)
 ===================================================== */
 
-console.log("🚀 Starting server...");
-
-initFirebase();
-console.log("✅ Firebase initialized");
-
-/* =====================================================
-   🔥 LOAD SCHEDULER (SAFE LOAD)
-===================================================== */
-
-try {
-  console.log("🔄 Loading Scheduler...");
-  
-  const schedulerPath = path.join(
-    __dirname,
-    "services",
-    "schedulers",
-    "masterScheduler"
+function getThaiNow() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
   );
+}
 
-  // ✅ ต้องเป็น startScheduler (ไม่มี s)
-const { startScheduler } = require(schedulerPath);
+function getThaiDateString() {
+  return getThaiNow().toISOString().split("T")[0];
+}
 
-  console.log("✅ Scheduler loaded successfully");
-
-startScheduler();
-
-} catch (err) {
-  console.error("❌ Scheduler failed to load:", err);
+function isSevenAMThai() {
+  const thai = getThaiNow();
+  return thai.getHours() === 7 && thai.getMinutes() === 0;
 }
 
 /* =====================================================
-   🔥 STATIC PUBLIC
+   🔔 REMINDER HANDLER (ไม่เปลี่ยนโครงสร้าง)
 ===================================================== */
 
-app.use(express.static(path.join(__dirname, "public")));
+async function handleReminders() {
+  const snapshot = await db.collection("reminders").get();
+  const nowThai = getThaiNow();
 
-/* =====================================================
-   🔥 WEBHOOK
-===================================================== */
+  const groupMapToday = {};
+  const groupMapSeven = {};
 
-app.post(
-  "/webhook",
-  bodyParser.raw({ type: "application/json" }),
-  middleware({ channelSecret: process.env.LINE_CHANNEL_SECRET }),
-  async (req, res) => {
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    if (!data.eventDate || !data.groupId) return;
 
-    try {
+    const eventDate = data.eventDate.toDate();
 
-      const events = req.body.events || [];
+    const diffDays = Math.ceil(
+      (eventDate - nowThai) / (1000 * 60 * 60 * 24)
+    );
 
-      for (const event of events) {
-        if (event.type === "message" && event.message.type === "text") {
-          await handleMessage(event);
-        }
+    // วันจริง
+    if (diffDays === 0) {
+      if (!groupMapToday[data.groupId]) {
+        groupMapToday[data.groupId] = [];
       }
-
-      res.sendStatus(200);
-
-    } catch (err) {
-      console.error("Webhook Error:", err);
-      res.sendStatus(500);
+      groupMapToday[data.groupId].push(data);
     }
+
+    // ล่วงหน้า 7 วัน
+    if (diffDays === 7) {
+      if (!groupMapSeven[data.groupId]) {
+        groupMapSeven[data.groupId] = [];
+      }
+      groupMapSeven[data.groupId].push(data);
+    }
+  });
+
+  // 🔔 แจ้งล่วงหน้า 7 วัน
+  for (const groupId in groupMapSeven) {
+    let msg = "🔔 แจ้งเตือนล่วงหน้า 7 วัน\n\n";
+    groupMapSeven[groupId].forEach((r, i) => {
+      msg += `${i + 1}. ${r.title}\n`;
+    });
+
+    await client.pushMessage(groupId, {
+      type: "text",
+      text: msg
+    });
   }
-);
+
+  // 📌 แจ้งวันจริง
+  for (const groupId in groupMapToday) {
+    let msg = "📌 วันนี้มีรายการสำคัญ\n\n";
+    groupMapToday[groupId].forEach((r, i) => {
+      msg += `${i + 1}. ${r.title}\n`;
+    });
+
+    await client.pushMessage(groupId, {
+      type: "text",
+      text: msg
+    });
+  }
+}
 
 /* =====================================================
-   🔥 HEALTH CHECK (กัน Render sleep)
+   🔄 SCHEDULER LOOP
 ===================================================== */
 
-app.get("/health", (req, res) => {
-  res.send("OK");
-});
+let lastRunDate = null;
 
-/* =====================================================
-   🔥 START LISTEN
-===================================================== */
+async function scheduler() {
+  if (!isSevenAMThai()) return;
 
-const PORT = process.env.PORT || 8080;
+  const todayStr = getThaiDateString();
 
-app.listen(PORT, () => {
-  console.log(`🔥 Server started on port ${PORT}`);
-});
+  // กันยิงซ้ำในวันเดียวกัน
+  if (lastRunDate === todayStr) return;
+
+  console.log("🔔 Running Reminder Scheduler:", todayStr);
+
+  try {
+    await handleReminders();
+    lastRunDate = todayStr;
+    console.log("✅ Reminder Scheduler Completed");
+  } catch (err) {
+    console.error("Reminder Scheduler Error:", err);
+  }
+}
+
+function startScheduler() {
+  console.log("⏰ Scheduler started (check every 60s)");
+  setInterval(scheduler, 60000);
+}
+
+module.exports = { startScheduler };
