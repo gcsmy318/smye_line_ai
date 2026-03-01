@@ -4,55 +4,57 @@ const { pushMessage } = require("../../config/line");
 let started = false;
 
 function startSchedulers() {
-
   if (started) return;
   started = true;
 
-  console.log("🔥 Reminder Scheduler Started (DB Fixed Version)");
+  console.log("🔥 Reminder Scheduler Started for SMYE");
 
-  setInterval(() => {
+  setInterval(async () => {
 
     const thaiNow = getThaiNow();
-    console.log("🟢 Scheduler tick (TH)",
-      thaiNow.toLocaleString("th-TH"));
+    console.log("🟢 Scheduler tick (TH)", thaiNow.toLocaleString("th-TH"));
 
-    runReminder(thaiNow)
-      .catch(err => console.error("Scheduler Error:", err));
+    try {
+      await runReminder(thaiNow);
+    } catch (err) {
+      console.error("Scheduler Error:", err);
+    }
 
-  }, 60000);
+  }, 60000); // every 1 min
 }
 
 async function runReminder(thaiNow) {
 
   const thaiHour = thaiNow.getHours();
-  if (thaiHour < 7) return;
+  if (thaiHour < 7) return; // only after 07:00
 
   const db = getDB();
   const todayKey = getThaiDateKey(thaiNow);
 
   const snapshot = await db.collection("reminders").get();
-
   if (snapshot.empty) {
-    console.log("📭 No reminders in DB");
+    console.log("📭 No reminders found");
     return;
   }
 
   for (const doc of snapshot.docs) {
 
     const data = doc.data();
-
     const groupId = data.groupId;
-    const scheduleDate = data.date; // ✅ ใช้ field date ตาม DB จริง
+    const scheduleDate = data.date; // match DB
 
-    if (!scheduleDate || !groupId) continue;
+    if (!groupId || !scheduleDate) continue;
 
     const schedule = parseDate(scheduleDate);
     if (!schedule) continue;
 
     const diff = diffInDays(schedule, thaiNow);
 
-    // ยิงเฉพาะวันนี้เท่านั้น
-    if (diff !== 0) continue;
+    // ถ้าผ่านวันแล้ว แต่ยังไม่เคยส่ง >> ส่งเลย
+    if (diff > 0) continue; // future, ยังไม่ควรส่ง
+
+    // ลบวิธีเช็ค diff === 0
+    // ส่งทุก reminder ที่ date <= today
 
     const logId = `${todayKey}_${groupId}_reminder`;
     const logRef = db.collection("schedulerLogs").doc(logId);
@@ -63,10 +65,10 @@ async function runReminder(thaiNow) {
       continue;
     }
 
+    // build message
     const message =
-      `📌 แจ้งเตือนวันนี้\n\n` +
-      `${data.title}\n` +
-      `วันที่ ${scheduleDate}`;
+      `📌 แจ้งเตือนวันที่ ${scheduleDate}\n` +
+      `${data.title || "-"}`;
 
     await pushMessage(groupId, message);
 
@@ -80,9 +82,7 @@ async function runReminder(thaiNow) {
   }
 }
 
-/* =======================
-   Time Helpers
-======================= */
+/* =========================== Helpers ============================ */
 
 function getThaiNow() {
   const thaiString = new Date().toLocaleString("en-US", {
@@ -98,18 +98,15 @@ function getThaiDateKey(thaiNow) {
 function parseDate(str) {
   const parts = str.split("/");
   if (parts.length !== 3) return null;
-
   const [d, m, y] = parts.map(Number);
   const year = y > 2500 ? y - 543 : y;
-
   return new Date(year, m - 1, d);
 }
 
 function diffInDays(a, b) {
   const dateA = new Date(a.getFullYear(), a.getMonth(), a.getDate());
   const dateB = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-
-  const diffTime = dateA.getTime() - dateB.getTime();
+  const diffTime = dateB.getTime() - dateA.getTime();
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 }
 
