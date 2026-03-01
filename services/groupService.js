@@ -7,14 +7,19 @@ const reminder = require("./modules/reminderModule");
 const note = require("./modules/permanentNoteModule");
 const report = require("./modules/serviceReportModule");
 const registry = require("./modules/registryModule");
+const general = require("./modules/generalModule"); // 🔥 ใหม่
 
+/* =====================================================
+   DEFAULT MODULES
+===================================================== */
 const DEFAULT_MODULES = {
   province: false,
   hatyai: false,
   reminder: false,
   permanentNote: false,
   serviceReport: false,
-  registry: false
+  registry: false,
+  general: false
 };
 
 /* =====================================================
@@ -51,6 +56,7 @@ async function handleMessage(event) {
     const doc = await docRef.get();
 
     if (!doc.exists) {
+      console.log("📁 Creating new group:", groupId);
       await docRef.set({
         type: "general",
         modules: { ...DEFAULT_MODULES }
@@ -61,11 +67,9 @@ async function handleMessage(event) {
     const modules = group.modules || DEFAULT_MODULES;
 
     /* ===============================
-       HELP DETAIL (ต้องมาก่อน)
+       HELP DETAIL
     ================================ */
-
-    // รองรับ help1 , help 1 , HELP 1
-    const helpMatch = normalized.match(/^help\s*([1-6])$/);
+    const helpMatch = normalized.match(/^help\s*([1-8])$/);
     if (helpMatch) {
       const number = helpMatch[1];
       return safeReply(event.replyToken, buildModuleDetail(number));
@@ -74,7 +78,6 @@ async function handleMessage(event) {
     /* ===============================
        HELP MENU
     ================================ */
-
     if (isHelpCommand(normalized)) {
       return safeReply(event.replyToken, buildMainMenu());
     }
@@ -94,7 +97,7 @@ async function handleMessage(event) {
     }
 
     /* ===============================
-       เปิดระบบ (ต้องขึ้นต้นด้วย Smile)
+       เปิดระบบ
     ================================ */
     if (normalized.startsWith("smile")) {
 
@@ -114,6 +117,7 @@ async function handleMessage(event) {
     try { if (modules.permanentNote && await note.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.serviceReport && await report.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.registry && await registry.handle(event, group)) return; } catch(e){ console.error(e); }
+    try { if (modules.general && await general.handle(event, group)) return; } catch(e){ console.error(e); }
 
   } catch (error) {
     console.error("Fatal Error:", error);
@@ -134,7 +138,8 @@ async function handleSetCommand(text, docRef, event) {
       "เซ็ต4": "permanentNote",
       "เซ็ต5": "serviceReport",
       "เซ็ต6": "registry",
-      "เซ็ต7": "status"
+      "เซ็ต7": "general",
+      "เซ็ต8": "status"
     };
 
     const key = Object.keys(setMap).find(k => text.includes(k));
@@ -152,6 +157,7 @@ async function handleSetCommand(text, docRef, event) {
     }, { merge: true });
 
     const updated = (await docRef.get()).data() || {};
+
     let msg = `✅ เปิดระบบ ${moduleName} เรียบร้อยแล้ว\n\n`;
     msg += buildStatus(updated);
 
@@ -181,7 +187,7 @@ async function showReminders(db, groupId, event) {
 
     snapshot.forEach(doc => {
       const data = doc.data();
-      const title = data.title || data.message || "-";
+      const title = data.title || "-";
       const date = data.scheduleDate || data.date || "-";
       msg += `- ${title} (${date})\n`;
     });
@@ -234,8 +240,8 @@ function buildMainMenu() {
   return `
 🤖 Spirit AI เมนูหลัก
 
-Smile เซ็ต1 - เซ็ต7 เปิดระบบ
-help 1 - help 6 ดูรายละเอียด
+Smile เซ็ต1 - เซ็ต8 เปิดระบบ
+help 1 - help 8 ดูรายละเอียด
 
 ดูแจ้งเตือน
 ดูรายงานแจ้งเตือน
@@ -244,12 +250,14 @@ help 1 - help 6 ดูรายละเอียด
 
 function buildModuleDetail(number) {
   switch (number) {
-    case "1": return "📊 ระบบรายงานจังหวัด (แจ้งเตือน อา จ อ ศ 08:00)";
-    case "2": return "📊 ระบบสถิติหาดใหญ่ (แจ้งเตือน อาทิตย์ 13:00)";
-    case "3": return "⏰ ระบบแจ้งเตือนล่วงหน้า (เตือนก่อนงาน 3 วัน)";
+    case "1": return "📊 ระบบรายงานจังหวัด";
+    case "2": return "📊 ระบบสถิติหาดใหญ่";
+    case "3": return "⏰ ระบบแจ้งเตือนล่วงหน้า";
     case "4": return "📝 ระบบบันทึกถาวร";
     case "5": return "📘 ระบบรายงานการรับใช้";
     case "6": return "👤 ระบบทะเบียนสมาชิก";
+    case "7": return "📢 ระบบแจ้งเตือนทั่วไปตามวันและเวลา";
+    case "8": return "📊 ดูสถานะระบบ";
     default: return "ไม่พบระบบนี้";
   }
 }

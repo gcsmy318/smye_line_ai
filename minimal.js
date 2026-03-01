@@ -7,6 +7,7 @@ const { middleware } = require("@line/bot-sdk");
 
 const { initFirebase } = require("./config/firebase");
 const { handleMessage } = require("./services/groupService");
+const { startGeneralScheduler } = require("./services/schedulers/generalScheduler");
 
 const app = express();
 
@@ -16,24 +17,32 @@ const app = express();
 
 console.log("🚀 Starting server...");
 
+// 🔥 ต้อง init Firebase ก่อน
 initFirebase();
 console.log("✅ Firebase initialized");
 
 /* =====================================================
-   🔥 LOAD SCHEDULER
+   🔥 START GENERAL SCHEDULER
+===================================================== */
+
+startGeneralScheduler();
+console.log("⏰ General Scheduler started");
+
+/* =====================================================
+   🔥 LOAD MASTER SCHEDULER
 ===================================================== */
 
 try {
-  console.log("🔄 Loading Scheduler...");
+  console.log("🔄 Loading Master Scheduler...");
 
   const { startScheduler } = require("./services/schedulers/masterScheduler");
 
   startScheduler();
 
-  console.log("✅ Scheduler loaded successfully");
+  console.log("✅ Master Scheduler loaded successfully");
 
 } catch (err) {
-  console.error("❌ Scheduler failed to load:", err);
+  console.error("❌ Master Scheduler failed to load:", err);
 }
 
 /* =====================================================
@@ -52,6 +61,7 @@ app.post(
   middleware({ channelSecret: process.env.LINE_CHANNEL_SECRET }),
   async (req, res) => {
     try {
+
       const events = req.body.events || [];
 
       for (const event of events) {

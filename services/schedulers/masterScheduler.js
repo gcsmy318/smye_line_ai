@@ -15,27 +15,40 @@ function getThaiDateString() {
   return getThaiNow().toISOString().split("T")[0];
 }
 
+function getThaiTimeString() {
+  return getThaiNow().toLocaleTimeString("th-TH");
+}
+
 function isSevenAMThai() {
   const thai = getThaiNow();
   return thai.getHours() === 7 && thai.getMinutes() === 0;
 }
 
+function isEightAMThai() {
+  const now = getThaiNow();
+  return now.getHours() === 8 && now.getMinutes() === 0;
+}
+
+function isReportDay(date) {
+  const day = date.getDay(); 
+  return [0,1,2,5].includes(day); // อา จ อ ศ
+}
+
 /* =====================================================
-   🔔 REMINDER LOGIC
+   🔔 รวมการแจ้งเตือนทั้งหมด (ล่วงหน้า 3 วัน)
 ===================================================== */
 
-async function handleReminders() {
-  console.log("📂 Fetching reminders from Firestore...");
-
-  const snapshot = await db.collection("reminders").get();
+async function collectNotifications() {
   const nowThai = getThaiNow();
+  const todayStr = getThaiDateString();
 
-  console.log("🕒 Thai Time:", nowThai);
+  const groupMessageMap = {};
 
-  const groupMapToday = {};
-  const groupMapSeven = {};
+  /* ================= REMINDER ================= */
 
-  snapshot.forEach(doc => {
+  const reminderSnap = await db.collection("reminders").get();
+
+  reminderSnap.forEach(doc => {
     const data = doc.data();
     if (!data.eventDate || !data.groupId) return;
 
@@ -45,56 +58,84 @@ async function handleReminders() {
       (eventDate - nowThai) / (1000 * 60 * 60 * 24)
     );
 
-    console.log("📌 Checking:", data.title, "diffDays:", diffDays);
-
-    if (diffDays === 0) {
-      if (!groupMapToday[data.groupId]) {
-        groupMapToday[data.groupId] = [];
-      }
-      groupMapToday[data.groupId].push(data);
+    if (!groupMessageMap[data.groupId]) {
+      groupMessageMap[data.groupId] = [];
     }
 
-    if (diffDays === 7) {
-      if (!groupMapSeven[data.groupId]) {
-        groupMapSeven[data.groupId] = [];
-      }
-      groupMapSeven[data.groupId].push(data);
+    if (diffDays === 0) {
+      groupMessageMap[data.groupId].push(
+        `📌 วันนี้: ${data.title}`
+      );
+    }
+
+    // 🔥 เปลี่ยนจาก 7 เป็น 3 วัน
+    if (diffDays === 3) {
+      groupMessageMap[data.groupId].push(
+        `⏳ อีก 3 วัน: ${data.title}`
+      );
     }
   });
 
-  // แจ้งล่วงหน้า
-  for (const groupId in groupMapSeven) {
-    let msg = "🔔 แจ้งเตือนล่วงหน้า 7 วัน\n\n";
+  /* ================= PROVINCE ================= */
 
-    groupMapSeven[groupId].forEach((r, i) => {
-      msg += `${i + 1}. ${r.title}\n`;
-    });
+  const provinceDoc = await db
+    .collection("weeklyProvinceStats")
+    .doc(todayStr)
+    .get();
 
-    console.log("📤 Sending 7-day reminder to:", groupId);
+  if (!provinceDoc.exists) {
+    const groupsSnap = await db.collection("groups").get();
 
-    await client.pushMessage(groupId, {
-      type: "text",
-      text: msg
-    });
-  }
+    groupsSnap.forEach(groupDoc => {
+      const groupData = groupDoc.data();
 
-  // แจ้งวันจริง
-  for (const groupId in groupMapToday) {
-    let msg = "📌 วันนี้มีรายการสำคัญ\n\n";
+      if (groupData.modules?.province) {
 
-    groupMapToday[groupId].forEach((r, i) => {
-      msg += `${i + 1}. ${r.title}\n`;
-    });
+        if (!groupMessageMap[groupDoc.id]) {
+          groupMessageMap[groupDoc.id] = [];
+        }
 
-    console.log("📤 Sending today reminder to:", groupId);
-
-    await client.pushMessage(groupId, {
-      type: "text",
-      text: msg
+        groupMessageMap[groupDoc.id].push(
+          "📢 วันนี้ยังไม่มีจังหวัดส่งสถิติ"
+        );
+      }
     });
   }
 
-  console.log("✅ Reminder check completed");
+  return groupMessageMap;
+}
+
+/* =====================================================
+   📤 ส่งข้อความรวม
+===================================================== */
+
+async function sendGroupedNotifications(showTime = false) {
+
+  const groupMessageMap = await collectNotifications();
+
+  for (const groupId in groupMessageMap) {
+
+    const messages = groupMessageMap[groupId];
+
+    if (!messages.length) continue;
+
+    let finalMessage = "🔔 แจ้งเตือนประจำวัน\n\n";
+
+    messages.forEach((msg, index) => {
+      finalMessage += `${index + 1}. ${msg}\n`;
+    });
+
+    if (showTime) {
+      finalMessage += `\n⏰ แจ้งเมื่อ: ${getThaiTimeString()}`;
+    }
+
+    console.log("📤 Sending grouped notification to:", groupId);
+
+    await client.pushMessage(groupId, {
+      type: "text",
+      text: finalMessage
+    });
+  }
 }
 
 /* =====================================================
@@ -107,25 +148,38 @@ async function scheduler() {
   if (!isSevenAMThai()) return;
 
   const todayStr = getThaiDateString();
+  if (lastRunDate === todayStr) return;
 
-  if (lastRunDate === todayStr) {
-    console.log("⏩ Already ran today, skipping...");
-    return;
-  }
 
-  console.log("🔔 Running Scheduler for:", todayStr);
+  console.log("🔔 7AM Scheduler Running:", todayStr);
 
-  try {
-    await handleReminders();
-    lastRunDate = todayStr;
-    console.log("🎉 Scheduler finished successfully");
-  } catch (err) {
-    console.error("❌ Scheduler error:", err);
-  }
+	if (isEightAMThai() && isReportDay(getThaiNow())) {
+	   await sendProvinceReminder();
+	}
+
+  await sendGroupedNotifications(true);
+
+  lastRunDate = todayStr;
 }
 
+/* =====================================================
+   🚀 RUN WHEN DEPLOY
+===================================================== */
+
+async function runOnStartup() {
+  console.log("🚀 Startup check running...");
+  await sendGroupedNotifications(true);
+  console.log("✅ Startup check completed");
+}
+
+/* =====================================================
+   START
+===================================================== */
+
 function startScheduler() {
-  console.log("⏰ Scheduler started (checking every 60 seconds)");
+  console.log("⏰ Scheduler started (checking every 60s)");
+
+  runOnStartup();      // ยิงตอน deploy ใหม่
   setInterval(scheduler, 60000);
 }
 
