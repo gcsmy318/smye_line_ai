@@ -5,10 +5,13 @@ const { reply } = require("../../config/line");
 const provinces = ["สงขลา","สตูล","ปัตตานี","ยะลา","นราธิวาส","พัทลุง"];
 
 function getWeekKey() {
+
   const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day;
-  const sunday = new Date(now.setDate(diff));
+  const day = now.getDay(); // 0 = Sunday
+
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() - day);
+
   return sunday.toISOString().slice(0,10);
 }
 
