@@ -106,11 +106,11 @@ async function handleProvinceReminder() {
 
       if (!data.modules?.province) continue;
 
-      await client.pushMessage(g.id, {
+ /*     await client.pushMessage(g.id, {
         type: "text",
         text: "📢 วันนี้ยังไม่มีจังหวัดส่งสถิติ"
       });
-
+*/
       console.log("📤 Province reminder sent:", g.id);
     }
 
