@@ -1,33 +1,28 @@
-const cron = require("node-cron");
 const { getDB } = require("../../config/firebase");
 const { pushMessage } = require("../../config/line");
 
 /* =====================================================
-   🔥 START SCHEDULER
+   START SCHEDULER (ใช้ setInterval แทน cron)
 ===================================================== */
 function startSchedulers() {
 
-  console.log("🔥 Reminder Scheduler Started");
+  console.log("🔥 Reminder Scheduler Started (Interval Mode)");
 
-  // ยิงทุก 1 นาที
-  cron.schedule("* * * * *", async () => {
+  setInterval(async () => {
 
-    console.log("🟢 Cron tick:", new Date().toLocaleString("th-TH"));
+    const now = new Date();
+    console.log("🟢 Interval tick:", now.toLocaleString("th-TH"));
 
     try {
 
-      const now = new Date();
-      const hour = now.getHours();
+      const thaiHour = getThaiHour();
 
       // ยิงได้ตั้งแต่ 07:00 เป็นต้นไป
-      if (hour < 7) return;
+      if (thaiHour < 7) return;
 
       const db = getDB();
-      const today = new Date();
       const todayKey = getTodayKey();
-
-      console.log("⏰ Checking reminders at",
-        now.toLocaleString("th-TH"));
+      const today = new Date();
 
       const snapshot = await db.collection("reminders").get();
 
@@ -71,7 +66,6 @@ function startSchedulers() {
         const logRef = db.collection("schedulerLogs").doc(logId);
         const logDoc = await logRef.get();
 
-        // 🔒 กันยิงซ้ำในวันเดียวกัน
         if (logDoc.exists) {
           console.log("Already sent today:", groupId);
           continue;
@@ -93,14 +87,12 @@ function startSchedulers() {
 
         console.log("✅ Reminder sent to:", groupId);
 
-        // บันทึก log
         await logRef.set({
           groupId,
           type: "reminder",
           sentAt: new Date()
         });
 
-        // อัปเดต flag
         for (const item of items) {
 
           if (item.type === "before") {
@@ -117,48 +109,44 @@ function startSchedulers() {
       console.error("Scheduler Error:", err);
     }
 
-  }, {
-    timezone: "Asia/Bangkok"
-  });
+  }, 60000); // ทุก 1 นาที
 }
 
 /* =====================================================
-   Parse Date (รองรับ พ.ศ. / ค.ศ.)
+   Helper Functions
 ===================================================== */
-function parseDate(str) {
 
-  if (!str) return null;
+function parseDate(str) {
 
   const parts = str.split("/");
   if (parts.length !== 3) return null;
 
   const [d, m, y] = parts.map(Number);
-
   const year = y > 2500 ? y - 543 : y;
 
   return new Date(year, m - 1, d);
 }
 
-/* =====================================================
-   Diff in Days (แม่น)
-===================================================== */
 function diffInDays(a, b) {
 
   const dateA = new Date(a.getFullYear(), a.getMonth(), a.getDate());
   const dateB = new Date(b.getFullYear(), b.getMonth(), b.getDate());
 
   const diffTime = dateA.getTime() - dateB.getTime();
-
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 }
 
-/* =====================================================
-   Today Key (เวลาไทย)
-===================================================== */
 function getTodayKey() {
   return new Date().toLocaleDateString("sv-SE", {
     timeZone: "Asia/Bangkok"
   });
+}
+
+function getThaiHour() {
+  const thaiTime = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Bangkok"
+  });
+  return new Date(thaiTime).getHours();
 }
 
 module.exports = { startSchedulers };
