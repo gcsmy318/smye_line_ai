@@ -86,39 +86,6 @@ async function handleMessage(event) {
       return showNotificationLogs(db, groupId, event);
     }
 
-
-  /* ===== 3️⃣ สรุปรายสัปดาห์ ===== */
-  if (text === "สรุปรายสัปดาห์") {
-
-    const doc = await docRef.get();
-    const reports = doc.exists ? doc.data().reports || [] : [];
-
-    let msg = `📊 สรุปรายสัปดาห์\n`;
-    msg += `ช่วงวันที่ ${formatWeekRange()}\n`;
-    msg += "---------------------------------\n";
-
-    if (reports.length === 0) {
-      msg += "ยังไม่มีรายงานในสัปดาห์นี้\n";
-    } else {
-
-      msg += `รวมทั้งหมด ${reports.length} รายการ\n\n`;
-
-      reports.forEach((r, index) => {
-        const date = new Date(
-          r.createdAt.seconds
-            ? r.createdAt.seconds * 1000
-            : r.createdAt
-        );
-
-        msg += `${index + 1}. ${date.toLocaleDateString("th-TH")} - ${r.content}\n`;
-      });
-    }
-
-    msg += "---------------------------------";
-
-    return reply(event.replyToken, msg);
-  }
-  
   
     /* ===== ROUTER MODULE ===== */
     try { if (modules.province && await province.handle(event, group)) return; } catch(e){ console.error(e); }
