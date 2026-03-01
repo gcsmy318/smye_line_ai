@@ -1,4 +1,5 @@
-const { db } = require("../../config/firebase");
+const cron = require("node-cron");
+const { getDB } = require("../../config/firebase");
 const { client } = require("../../config/line");
 
 /* =====================================================
@@ -15,172 +16,152 @@ function getThaiDateString() {
   return getThaiNow().toISOString().split("T")[0];
 }
 
-function getThaiTimeString() {
-  return getThaiNow().toLocaleTimeString("th-TH");
-}
-
-function isSevenAMThai() {
-  const thai = getThaiNow();
-  return thai.getHours() === 7 && thai.getMinutes() === 0;
-}
-
-function isEightAMThai() {
-  const now = getThaiNow();
-  return now.getHours() === 8 && now.getMinutes() === 0;
-}
-
 function isReportDay(date) {
-  const day = date.getDay(); 
-  return [0,1,2,5].includes(day); // อา จ อ ศ
+  const day = date.getDay(); // 0=อา 1=จ 2=อ 5=ศ
+  return [0, 1, 2, 5].includes(day);
 }
 
 /* =====================================================
-   🔔 รวมการแจ้งเตือนทั้งหมด (ล่วงหน้า 3 วัน)
+   🔔 REMINDER (7 โมงเช้า)
 ===================================================== */
 
-async function collectNotifications() {
-  const nowThai = getThaiNow();
-  const todayStr = getThaiDateString();
+async function handleReminders() {
 
-  const groupMessageMap = {};
+  try {
 
-  /* ================= REMINDER ================= */
+    const db = getDB();
+    const nowThai = getThaiNow();
+    const todayStr = getThaiDateString();
 
-  const reminderSnap = await db.collection("reminders").get();
+    const snapshot = await db.collection("reminders").get();
 
-  reminderSnap.forEach(doc => {
-    const data = doc.data();
-    if (!data.eventDate || !data.groupId) return;
+    const groupMap = {};
 
-    const eventDate = data.eventDate.toDate();
+    snapshot.forEach(doc => {
 
-    const diffDays = Math.ceil(
-      (eventDate - nowThai) / (1000 * 60 * 60 * 24)
-    );
+      const data = doc.data();
+      if (!data.eventDate || !data.groupId) return;
 
-    if (!groupMessageMap[data.groupId]) {
-      groupMessageMap[data.groupId] = [];
-    }
+      const eventDate = data.eventDate.toDate();
 
-    if (diffDays === 0) {
-      groupMessageMap[data.groupId].push(
-        `📌 วันนี้: ${data.title}`
+      const diffDays = Math.ceil(
+        (eventDate - nowThai) / (1000 * 60 * 60 * 24)
       );
-    }
 
-    // 🔥 เปลี่ยนจาก 7 เป็น 3 วัน
-    if (diffDays === 3) {
-      groupMessageMap[data.groupId].push(
-        `⏳ อีก 3 วัน: ${data.title}`
-      );
-    }
-  });
-
-  /* ================= PROVINCE ================= */
-
-  const provinceDoc = await db
-    .collection("weeklyProvinceStats")
-    .doc(todayStr)
-    .get();
-
-  if (!provinceDoc.exists) {
-    const groupsSnap = await db.collection("groups").get();
-
-    groupsSnap.forEach(groupDoc => {
-      const groupData = groupDoc.data();
-
-      if (groupData.modules?.province) {
-
-        if (!groupMessageMap[groupDoc.id]) {
-          groupMessageMap[groupDoc.id] = [];
-        }
-
-        groupMessageMap[groupDoc.id].push(
-          "📢 วันนี้ยังไม่มีจังหวัดส่งสถิติ"
-        );
+      if (!groupMap[data.groupId]) {
+        groupMap[data.groupId] = [];
       }
-    });
-  }
 
-  return groupMessageMap;
-}
+      if (diffDays === 0) {
+        groupMap[data.groupId].push(`📌 วันนี้: ${data.title}`);
+      }
 
-/* =====================================================
-   📤 ส่งข้อความรวม
-===================================================== */
+      if (diffDays === 3) {
+        groupMap[data.groupId].push(`⏳ อีก 3 วัน: ${data.title}`);
+      }
 
-async function sendGroupedNotifications(showTime = false) {
-
-  const groupMessageMap = await collectNotifications();
-
-  for (const groupId in groupMessageMap) {
-
-    const messages = groupMessageMap[groupId];
-
-    if (!messages.length) continue;
-
-    let finalMessage = "🔔 แจ้งเตือนประจำวัน\n\n";
-
-    messages.forEach((msg, index) => {
-      finalMessage += `${index + 1}. ${msg}\n`;
     });
 
-    if (showTime) {
-      finalMessage += `\n⏰ แจ้งเมื่อ: ${getThaiTimeString()}`;
+    for (const groupId in groupMap) {
+
+      if (!groupMap[groupId].length) continue;
+
+      let msg = "🔔 แจ้งเตือนประจำวัน\n\n";
+
+      groupMap[groupId].forEach((m, i) => {
+        msg += `${i + 1}. ${m}\n`;
+      });
+
+      msg += `\n⏰ แจ้งเมื่อ: ${nowThai.toLocaleTimeString("th-TH")}`;
+
+      await client.pushMessage(groupId, {
+        type: "text",
+        text: msg
+      });
+
+      console.log("📤 Reminder sent to:", groupId);
     }
 
-    console.log("📤 Sending grouped notification to:", groupId);
-
-    await client.pushMessage(groupId, {
-      type: "text",
-      text: finalMessage
-    });
+  } catch (err) {
+    console.error("Reminder Error:", err);
   }
 }
 
 /* =====================================================
-   🔄 SCHEDULER LOOP
+   📢 PROVINCE (8 โมง อา จ อ ศ)
 ===================================================== */
 
-let lastRunDate = null;
+async function handleProvinceReminder() {
 
-async function scheduler() {
-  if (!isSevenAMThai()) return;
+  try {
 
-  const todayStr = getThaiDateString();
-  if (lastRunDate === todayStr) return;
+    const db = getDB();
+    const today = getThaiNow();
+    const todayStr = getThaiDateString();
 
+    if (!isReportDay(today)) return;
 
-  console.log("🔔 7AM Scheduler Running:", todayStr);
+    const provinceDoc = await db
+      .collection("weeklyProvinceStats")
+      .doc(todayStr)
+      .get();
 
-	if (isEightAMThai() && isReportDay(getThaiNow())) {
-	   await sendProvinceReminder();
-	}
+    if (provinceDoc.exists) return;
 
-  await sendGroupedNotifications(true);
+    const groups = await db.collection("groups").get();
 
-  lastRunDate = todayStr;
+    for (const g of groups.docs) {
+
+      const data = g.data();
+
+      if (!data.modules?.province) continue;
+
+      await client.pushMessage(g.id, {
+        type: "text",
+        text: "📢 วันนี้ยังไม่มีจังหวัดส่งสถิติ"
+      });
+
+      console.log("📤 Province reminder sent to:", g.id);
+    }
+
+  } catch (err) {
+    console.error("Province Reminder Error:", err);
+  }
 }
 
 /* =====================================================
-   🚀 RUN WHEN DEPLOY
-===================================================== */
-
-async function runOnStartup() {
-  console.log("🚀 Startup check running...");
-  await sendGroupedNotifications(true);
-  console.log("✅ Startup check completed");
-}
-
-/* =====================================================
-   START
+   🚀 START SCHEDULER
 ===================================================== */
 
 function startScheduler() {
-  console.log("⏰ Scheduler started (checking every 60s)");
 
-  runOnStartup();      // ยิงตอน deploy ใหม่
-  setInterval(scheduler, 60000);
+  console.log("⏰ Master Scheduler Started");
+
+  /* ===============================
+     7:00 REMINDER
+  ================================ */
+  cron.schedule("0 7 * * *", async () => {
+    console.log("🔔 Running 7AM Reminder");
+    await handleReminders();
+  }, { timezone: "Asia/Bangkok" });
+
+  /* ===============================
+     8:00 PROVINCE (อา จ อ ศ)
+  ================================ */
+  cron.schedule("0 8 * * 0,1,2,5", async () => {
+    console.log("📢 Running 8AM Province Reminder");
+    await handleProvinceReminder();
+  }, { timezone: "Asia/Bangkok" });
+
+  /* ===============================
+     RUN ON STARTUP
+  ================================ */
+  setTimeout(async () => {
+    console.log("🚀 Startup Check Running...");
+    await handleReminders();
+    await handleProvinceReminder();
+    console.log("✅ Startup Check Complete");
+  }, 5000);
 }
 
 module.exports = { startScheduler };
