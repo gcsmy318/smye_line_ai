@@ -44,7 +44,9 @@ async function handleMessage(event) {
 
     const normalized = text.toLowerCase();
 
-    /* ===== HELP ===== */
+    /* ===============================
+       HELP รองรับ help7 / help 7
+    ================================ */
     const helpMatch = normalized.match(/^help\s*([1-8])$/);
     if (helpMatch) {
       return safeReply(event.replyToken, buildModuleDetail(helpMatch[1]));
@@ -54,7 +56,9 @@ async function handleMessage(event) {
       return safeReply(event.replyToken, buildMainMenu());
     }
 
-    /* ===== ใช้ DB หลังจากนี้ ===== */
+    /* ===============================
+       ใช้ DB หลังจากนี้
+    ================================ */
     const db = getDB();
     const docRef = db.collection("groups").doc(groupId);
     const doc = await docRef.get();
@@ -86,31 +90,9 @@ async function handleMessage(event) {
       return showNotificationLogs(db, groupId, event);
     }
 
-    /* =====================================================
-       🔥 ดูตาราง (GENERAL SCHEDULE)
-    ===================================================== */
     if (normalized === "ดูตาราง") {
-
-      const groupData = (await docRef.get()).data() || {};
-      const settings = groupData.generalSettings || {};
-
-      let msg = "📢 ตารางแจ้งเตือนทั่วไป\n\n";
-
-      const scheduleList = {
-        fri12: "ศุกร์ 12.00 ซ้อมนมัสการ",
-        sun9: "อาทิตย์ 09.00 Hope Channel",
-        sun1130: "อาทิตย์ 11.30 เพลงตอบสนอง",
-        mon12: "จันทร์ 12.00 โปรแกรมวันอาทิตย์",
-        fri8: "ศุกร์/เสาร์ 08.00 นัดประชุม",
-        sat15: "เสาร์ 15.00 ชั้นสร้าง"
-      };
-
-      Object.keys(scheduleList).forEach(key => {
-        const status = settings[key] === false ? "❌ ปิด" : "✔ เปิด";
-        msg += `${status} - ${scheduleList[key]}\n`;
-      });
-
-      return safeReply(event.replyToken, msg);
+      return safeReply(event.replyToken,
+        "ใช้ help 7 เพื่อดูรายละเอียดระบบแจ้งเตือนทั่วไป");
     }
 
     /* ===== ROUTER MODULE ===== */
@@ -130,85 +112,35 @@ async function handleMessage(event) {
 /* ===================================================== */
 async function handleSetCommand(text, docRef, event) {
 
-  try {
+  const setMap = {
+    "เซ็ต1": "province",
+    "เซ็ต2": "hatyai",
+    "เซ็ต3": "reminder",
+    "เซ็ต4": "permanentNote",
+    "เซ็ต5": "serviceReport",
+    "เซ็ต6": "registry",
+    "เซ็ต7": "general",
+    "เซ็ต8": "status"
+  };
 
-    const setMap = {
-      "เซ็ต1": "province",
-      "เซ็ต2": "hatyai",
-      "เซ็ต3": "reminder",
-      "เซ็ต4": "permanentNote",
-      "เซ็ต5": "serviceReport",
-      "เซ็ต6": "registry",
-      "เซ็ต7": "general",
-      "เซ็ต8": "status"
-    };
+  const key = Object.keys(setMap).find(k => text.includes(k));
+  if (!key) return;
 
-    const key = Object.keys(setMap).find(k => text.includes(k));
-    if (!key) return;
+  const moduleName = setMap[key];
 
-    const moduleName = setMap[key];
-
-    if (moduleName === "status") {
-      const group = (await docRef.get()).data() || {};
-      return safeReply(event.replyToken, buildStatus(group));
-    }
-
-    await docRef.set({
-      modules: { [moduleName]: true }
-    }, { merge: true });
-
-    const updated = (await docRef.get()).data() || {};
-
-    let msg = `✅ เปิดระบบ ${moduleName} เรียบร้อยแล้ว\n\n`;
-    msg += buildStatus(updated);
-
-    return safeReply(event.replyToken, msg);
-
-  } catch (err) {
-    console.error("Set Error:", err);
-  }
-}
-
-/* ===================================================== */
-async function showReminders(db, groupId, event) {
-
-  const snapshot = await db
-    .collection("reminders")
-    .where("groupId", "==", groupId)
-    .get();
-
-  if (snapshot.empty) {
-    return safeReply(event.replyToken, "📭 ไม่มีรายการแจ้งเตือนสำหรับกลุ่มนี้");
+  if (moduleName === "status") {
+    const group = (await docRef.get()).data() || {};
+    return safeReply(event.replyToken, buildStatus(group));
   }
 
-  let msg = "📌 รายการแจ้งเตือน\n\n";
+  await docRef.set({
+    modules: { [moduleName]: true }
+  }, { merge: true });
 
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    msg += `- ${data.title || "-"}\n`;
-  });
+  const updated = (await docRef.get()).data() || {};
 
-  return safeReply(event.replyToken, msg);
-}
-
-/* ===================================================== */
-async function showNotificationLogs(db, groupId, event) {
-
-  const snapshot = await db
-    .collection("notificationLogs")
-    .where("groupId", "==", groupId)
-    .get();
-
-  if (snapshot.empty) {
-    return safeReply(event.replyToken, "📭 ยังไม่มีประวัติแจ้งเตือน");
-  }
-
-  let msg = "📊 รายงานแจ้งเตือน\n\n";
-
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    msg += `- ${data.type || "-"}\n`;
-  });
+  let msg = `✅ เปิดระบบ ${moduleName} เรียบร้อยแล้ว\n\n`;
+  msg += buildStatus(updated);
 
   return safeReply(event.replyToken, msg);
 }
@@ -219,17 +151,79 @@ function buildMainMenu() {
 🤖 Spirit AI เมนูหลัก
 
 Smile เซ็ต1 - เซ็ต8 เปิดระบบ
-help 1 - help 8 ดูรายละเอียด
+help 1 - help 8 ดูรายละเอียดแต่ละระบบ
 ดูแจ้งเตือน
 ดูรายงานแจ้งเตือน
-ดูตาราง
 `;
 }
 
+/* ===================================================== */
 function buildModuleDetail(number) {
-  return "ใช้ help 1-8 เพื่อดูรายละเอียดแต่ละระบบ";
+
+  switch (number) {
+
+    case "1":
+      return `📊 ระบบรายงานจังหวัด
+คำสั่ง:
+สงขลา ส่งสถิติแล้ว
+สตูล ส่งสถิติแล้ว`;
+
+    case "2":
+      return `📊 ระบบสถิติหาดใหญ่
+คำสั่ง:
+หาดใหญ่ 120 คน
+เด็ก 30 คน`;
+
+    case "3":
+      return `⏰ ระบบแจ้งเตือนล่วงหน้า
+คำสั่ง:
+เตือน ประชุมทีม 25/03/2026
+ดูแจ้งเตือน`;
+
+    case "4":
+      return `📝 ระบบบันทึกถาวร
+คำสั่ง:
+บันทึก วันนี้ประชุม 18.00
+ดูบันทึก`;
+
+    case "5":
+      return `📘 ระบบรายงานการรับใช้
+คำสั่ง:
+รายงานการรับใช้ แจกถุงยังชีพ 20 ชุด
+สรุปรายสัปดาห์`;
+
+    case "6":
+      return `👤 ระบบทะเบียนสมาชิก
+คำสั่ง:
+ลงทะเบียน สมชาย ใจดี`;
+
+    case "7":
+      return `📢 ระบบแจ้งเตือนทั่วไป (General)
+
+แจ้งเตือนอัตโนมัติ:
+ศุกร์ 12.00 ซ้อมนมัสการ
+อาทิตย์ 09.00 Hope Channel
+อาทิตย์ 11.30 เพลงตอบสนอง
+จันทร์ 12.00 โปรแกรมวันอาทิตย์
+ศุกร์/เสาร์ 08.00 นัดประชุม
+เสาร์ 15.00 ชั้นสร้าง
+
+คำสั่ง:
+ดูตาราง
+เปิด fri12
+ปิด fri12`;
+
+    case "8":
+      return `📊 ดูสถานะระบบ
+คำสั่ง:
+Smile เซ็ต8`;
+
+    default:
+      return "ไม่พบระบบนี้";
+  }
 }
 
+/* ===================================================== */
 function buildStatus(group) {
   let msg = "📊 สถานะระบบ\n\n";
   const modules = group.modules || {};
@@ -240,9 +234,7 @@ function buildStatus(group) {
 }
 
 function isHelpCommand(text) {
-  if (text === "help") return true;
-  const keywords = ["menu","เมนู","คำสั่ง","setup"];
-  return keywords.includes(text);
+  return ["help","menu","เมนู","คำสั่ง","setup"].includes(text);
 }
 
 module.exports = { handleMessage };
