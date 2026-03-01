@@ -3,53 +3,16 @@ const { getDB } = require("../../config/firebase");
 const { pushMessage } = require("../../config/line");
 
 /* =====================================================
-   Parse Date (รองรับ พ.ศ. / ค.ศ.)
-===================================================== */
-function parseDate(str) {
-
-  if (!str) return null;
-
-  const parts = str.split("/");
-  if (parts.length !== 3) return null;
-
-  const [d, m, y] = parts.map(Number);
-
-  const year = y > 2500 ? y - 543 : y;
-
-  return new Date(year, m - 1, d);
-}
-
-/* =====================================================
-   Diff in Days (แม่น)
-===================================================== */
-function diffInDays(a, b) {
-
-  const dateA = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-  const dateB = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-
-  const diffTime = dateA.getTime() - dateB.getTime();
-
-  return Math.round(diffTime / (1000 * 60 * 60 * 24));
-}
-
-/* =====================================================
-   Today Key (เวลาไทย)
-===================================================== */
-function getTodayKey() {
-  return new Date().toLocaleDateString("sv-SE", {
-    timeZone: "Asia/Bangkok"
-  });
-}
-
-/* =====================================================
-   START SCHEDULER
+   🔥 START SCHEDULER
 ===================================================== */
 function startSchedulers() {
 
   console.log("🔥 Reminder Scheduler Started");
 
-  // ยิงทุก 1 นาที (รองรับ catch-up)
+  // ยิงทุก 1 นาที
   cron.schedule("* * * * *", async () => {
+
+    console.log("🟢 Cron tick:", new Date().toLocaleString("th-TH"));
 
     try {
 
@@ -63,13 +26,13 @@ function startSchedulers() {
       const today = new Date();
       const todayKey = getTodayKey();
 
-      console.log("⏰ Checking scheduler at",
+      console.log("⏰ Checking reminders at",
         now.toLocaleString("th-TH"));
 
       const snapshot = await db.collection("reminders").get();
 
       if (snapshot.empty) {
-        console.log("No reminders found");
+        console.log("📭 No reminders found");
         return;
       }
 
@@ -128,7 +91,7 @@ function startSchedulers() {
 
         await pushMessage(groupId, message);
 
-        console.log("✅ Catch-up sent to", groupId);
+        console.log("✅ Reminder sent to:", groupId);
 
         // บันทึก log
         await logRef.set({
@@ -156,6 +119,45 @@ function startSchedulers() {
 
   }, {
     timezone: "Asia/Bangkok"
+  });
+}
+
+/* =====================================================
+   Parse Date (รองรับ พ.ศ. / ค.ศ.)
+===================================================== */
+function parseDate(str) {
+
+  if (!str) return null;
+
+  const parts = str.split("/");
+  if (parts.length !== 3) return null;
+
+  const [d, m, y] = parts.map(Number);
+
+  const year = y > 2500 ? y - 543 : y;
+
+  return new Date(year, m - 1, d);
+}
+
+/* =====================================================
+   Diff in Days (แม่น)
+===================================================== */
+function diffInDays(a, b) {
+
+  const dateA = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  const dateB = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+
+  const diffTime = dateA.getTime() - dateB.getTime();
+
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
+}
+
+/* =====================================================
+   Today Key (เวลาไทย)
+===================================================== */
+function getTodayKey() {
+  return new Date().toLocaleDateString("sv-SE", {
+    timeZone: "Asia/Bangkok"
   });
 }
 
