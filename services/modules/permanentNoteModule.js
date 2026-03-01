@@ -1,9 +1,6 @@
 const { getDB } = require("../../config/firebase");
 const { reply } = require("../../config/line");
 
-/* =========================================
-   HANDLE
-========================================= */
 async function handle(event) {
 
   const text = event.message.text.trim();
@@ -12,11 +9,7 @@ async function handle(event) {
 
   const collection = db.collection("permanentNotes");
 
-  /* ===============================
-     บันทึก
-     ตัวอย่าง:
-     บันทึก วันนี้ประชุมทีม
-  ================================ */
+  /* ===== บันทึก ===== */
   if (text.startsWith("บันทึก ")) {
 
     const content = text.replace("บันทึก", "").trim();
@@ -31,15 +24,11 @@ async function handle(event) {
     return reply(event.replyToken, "✅ บันทึกเรียบร้อยแล้ว");
   }
 
-  /* ===============================
-     ดูบันทึก
-  ================================ */
+  /* ===== ดูบันทึก ===== */
   if (text === "ดูบันทึก") {
 
     const snapshot = await collection
       .where("groupId", "==", groupId)
-      .orderBy("createdAt", "desc")
-      .limit(20)
       .get();
 
     if (snapshot.empty) {
@@ -50,8 +39,7 @@ async function handle(event) {
 
     snapshot.forEach((doc, index) => {
       const data = doc.data();
-      const date = new Date(data.createdAt);
-      msg += `${index + 1}. ${date.toLocaleDateString("th-TH")} - ${data.content}\n`;
+      msg += `${index + 1}. ${data.content}\n`;
     });
 
     return reply(event.replyToken, msg);
