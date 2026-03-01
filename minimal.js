@@ -33,11 +33,12 @@ try {
     "masterScheduler"
   );
 
-  const { startSchedulers } = require(schedulerPath);
+  // ✅ ต้องเป็น startScheduler (ไม่มี s)
+const { startScheduler } = require(schedulerPath);
 
   console.log("✅ Scheduler loaded successfully");
 
-  startSchedulers();
+startScheduler();
 
 } catch (err) {
   console.error("❌ Scheduler failed to load:", err);
