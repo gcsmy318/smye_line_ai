@@ -1,5 +1,5 @@
 const { getDB } = require("../../config/firebase");
-const { pushMessage } = require("../../config/line");
+const { push } = require("../../config/line");
 
 let started = false;
 
@@ -49,7 +49,7 @@ async function runReminder(thaiNow) {
 
     console.log("DEBUG Diff:", diff, scheduleDate);
 
-    if (diff !== 0) continue; // ยิงเฉพาะวันนี้
+    if (diff !== 0) continue;
 
     const logId = `${todayKey}_${groupId}_reminder`;
     const logRef = db.collection("schedulerLogs").doc(logId);
@@ -60,7 +60,7 @@ async function runReminder(thaiNow) {
     const message =
       `📌 แจ้งเตือนวันนี้\n${data.title}\nวันที่ ${scheduleDate}`;
 
-    await pushMessage(groupId, message);
+    await push(groupId, message); // ✅ ใช้ push แทน
 
     await logRef.set({
       groupId,
@@ -93,7 +93,7 @@ function parseDate(str) {
 function diffInDays(a, b) {
   const dateA = new Date(a.getFullYear(), a.getMonth(), a.getDate());
   const dateB = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-  const diffTime = dateA.getTime() - dateB.getTime(); // ✅ ถูกด้านแล้ว
+  const diffTime = dateA.getTime() - dateB.getTime();
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 }
 
