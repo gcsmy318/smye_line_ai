@@ -1,100 +1,92 @@
-const { getDB } = require("../../config/firebase");
-const { push } = require("../../config/line");
+const { db } = require("../config/firebase");
+const { client } = require("../config/line");
+const admin = require("firebase-admin");
 
-let started = false;
+let lastRunDate = null;
 
-function startSchedulers() {
-
-  if (started) return;
-  started = true;
-
-  console.log("🔥 Reminder Scheduler Started");
-
-  setInterval(async () => {
-
-    const thaiNow = getThaiNow();
-    console.log("🟢 Scheduler tick (TH)", thaiNow.toLocaleString("th-TH"));
-
-    try {
-      await runReminder(thaiNow);
-    } catch (err) {
-      console.error("Scheduler Error:", err);
-    }
-
-  }, 60000);
+function getTodayString() {
+  const now = new Date();
+  return now.toISOString().split("T")[0];
 }
 
-async function runReminder(thaiNow) {
+function isSevenAM() {
+  const now = new Date();
+  return now.getHours() === 7 && now.getMinutes() === 0;
+}
 
-  const thaiHour = thaiNow.getHours();
-  if (thaiHour < 7) return;
+async function sendMessage(groupId, text) {
+  await client.pushMessage(groupId, {
+    type: "text",
+    text
+  });
+}
 
-  const db = getDB();
-  const todayKey = getThaiDateKey(thaiNow);
-
+async function handleReminders() {
   const snapshot = await db.collection("reminders").get();
+  const today = new Date();
+  const todayStr = getTodayString();
 
-  for (const doc of snapshot.docs) {
+  const todayList = [];
+  const sevenDayList = [];
 
+  snapshot.forEach(doc => {
     const data = doc.data();
-    const groupId = data.groupId;
-    const scheduleDate = data.date;
+    const eventDate = data.eventDate.toDate();
 
-    if (!groupId || !scheduleDate) continue;
+    const diffDays = Math.ceil(
+      (eventDate - today) / (1000 * 60 * 60 * 24)
+    );
 
-    const schedule = parseDate(scheduleDate);
-    if (!schedule) continue;
+    if (diffDays === 0) {
+      todayList.push(data);
+    }
 
-    const diff = diffInDays(schedule, thaiNow);
+    if (diffDays === 7) {
+      sevenDayList.push(data);
+    }
+  });
 
-    console.log("DEBUG Diff:", diff, scheduleDate);
-
-    if (diff !== 0) continue;
-
-    const logId = `${todayKey}_${groupId}_reminder`;
-    const logRef = db.collection("schedulerLogs").doc(logId);
-    const logDoc = await logRef.get();
-
-    if (logDoc.exists) continue;
-
-    const message =
-      `📌 แจ้งเตือนวันนี้\n${data.title}\nวันที่ ${scheduleDate}`;
-
-    await push(groupId, message); // ✅ ใช้ push แทน
-
-    await logRef.set({
-      groupId,
-      type: "reminder",
-      sentAt: new Date()
+  if (sevenDayList.length > 0) {
+    let msg = "🔔 แจ้งเตือนล่วงหน้า 7 วัน\n\n";
+    sevenDayList.forEach((r, i) => {
+      msg += `${i + 1}. ${r.title}\n`;
     });
+    await sendMessage(sevenDayList[0].groupId, msg);
+  }
 
-    console.log("✅ Reminder sent:", groupId);
+  if (todayList.length > 0) {
+    let msg = "📌 วันนี้มีรายการสำคัญ\n\n";
+    todayList.forEach((r, i) => {
+      msg += `${i + 1}. ${r.title}\n`;
+    });
+    await sendMessage(todayList[0].groupId, msg);
   }
 }
 
-/* ======================= Helpers ======================= */
+async function handleProvinceReminder() {
+  const todayStr = getTodayString();
+  const doc = await db.collection("weeklyProvinceStats").doc(todayStr).get();
 
-function getThaiNow() {
-  const thaiString = new Date().toLocaleString("en-US", {
-    timeZone: "Asia/Bangkok"
-  });
-  return new Date(thaiString);
+  if (!doc.exists) {
+    await sendMessage("YOUR_GROUP_ID", 
+      "📢 แจ้งเตือนรายงานจังหวัด\nวันนี้ยังไม่มีจังหวัดส่งสถิติ");
+  }
 }
 
-function getThaiDateKey(thaiNow) {
-  return thaiNow.toLocaleDateString("sv-SE");
+async function scheduler() {
+  if (!isSevenAM()) return;
+
+  const todayStr = getTodayString();
+  if (lastRunDate === todayStr) return;
+
+  lastRunDate = todayStr;
+
+  await handleReminders();
+  await handleProvinceReminder();
 }
 
-function parseDate(str) {
-  const [d,m,y] = str.split("/").map(Number);
-  return new Date(y, m-1, d);
+function startScheduler() {
+  setInterval(scheduler, 60000);
 }
 
-function diffInDays(a, b) {
-  const dateA = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-  const dateB = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-  const diffTime = dateA.getTime() - dateB.getTime();
-  return Math.round(diffTime / (1000 * 60 * 60 * 24));
-}
-
-module.exports = { startSchedulers };
+module.exports = { startScheduler };
