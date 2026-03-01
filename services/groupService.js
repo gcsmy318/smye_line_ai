@@ -44,7 +44,7 @@ async function handleMessage(event) {
 
     const normalized = text.toLowerCase();
 
-    /* ===== HELP (ไม่ใช้ DB) ===== */
+    /* ===== HELP ===== */
     const helpMatch = normalized.match(/^help\s*([1-8])$/);
     if (helpMatch) {
       return safeReply(event.replyToken, buildModuleDetail(helpMatch[1]));
@@ -54,7 +54,7 @@ async function handleMessage(event) {
       return safeReply(event.replyToken, buildMainMenu());
     }
 
-    /* ===== หลังจากนี้ใช้ DB ===== */
+    /* ===== ใช้ DB หลังจากนี้ ===== */
     const db = getDB();
     const docRef = db.collection("groups").doc(groupId);
     const doc = await docRef.get();
@@ -86,7 +86,33 @@ async function handleMessage(event) {
       return showNotificationLogs(db, groupId, event);
     }
 
-  
+    /* =====================================================
+       🔥 ดูตาราง (GENERAL SCHEDULE)
+    ===================================================== */
+    if (normalized === "ดูตาราง") {
+
+      const groupData = (await docRef.get()).data() || {};
+      const settings = groupData.generalSettings || {};
+
+      let msg = "📢 ตารางแจ้งเตือนทั่วไป\n\n";
+
+      const scheduleList = {
+        fri12: "ศุกร์ 12.00 ซ้อมนมัสการ",
+        sun9: "อาทิตย์ 09.00 Hope Channel",
+        sun1130: "อาทิตย์ 11.30 เพลงตอบสนอง",
+        mon12: "จันทร์ 12.00 โปรแกรมวันอาทิตย์",
+        fri8: "ศุกร์/เสาร์ 08.00 นัดประชุม",
+        sat15: "เสาร์ 15.00 ชั้นสร้าง"
+      };
+
+      Object.keys(scheduleList).forEach(key => {
+        const status = settings[key] === false ? "❌ ปิด" : "✔ เปิด";
+        msg += `${status} - ${scheduleList[key]}\n`;
+      });
+
+      return safeReply(event.replyToken, msg);
+    }
+
     /* ===== ROUTER MODULE ===== */
     try { if (modules.province && await province.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.hatyai && await hatyai.handle(event, group)) return; } catch(e){ console.error(e); }
@@ -196,144 +222,12 @@ Smile เซ็ต1 - เซ็ต8 เปิดระบบ
 help 1 - help 8 ดูรายละเอียด
 ดูแจ้งเตือน
 ดูรายงานแจ้งเตือน
+ดูตาราง
 `;
 }
 
 function buildModuleDetail(number) {
-
-  switch (number) {
-
-    case "1":
-      return `
-📊 ระบบรายงานจังหวัด (Province Module)
-
-ใช้สำหรับแจ้งเตือนให้ส่งสถิติ และบันทึกสถานะจังหวัด
-
-🔹 แจ้งเตือนอัตโนมัติ:
-- วันอาทิตย์
-- วันจันทร์
-- วันอังคาร
-- วันศุกร์
-เวลา 08.00 น.
-
-🔹 คำสั่งใช้งาน:
-สงขลา ส่งสถิติแล้ว
-สตูล ส่งสถิติแล้ว
-
-🔹 ตัวอย่าง:
-สงขลา ส่งสถิติแล้ว
-
-ระบบจะตอบกลับและทำเครื่องหมายว่า
-- สงขลา (ส่งสถิติแล้ว)
-`;
-
-    case "2":
-      return `
-📊 ระบบสถิติหาดใหญ่ (Hatyai Module)
-
-ใช้บันทึกและสรุปสถิติของพื้นที่หาดใหญ่
-
-🔹 ตัวอย่างคำสั่ง:
-หาดใหญ่ 120 คน
-เด็ก 30 คน
-
-🔹 ระบบสามารถสรุปผลรายสัปดาห์ได้
-`;
-
-    case "3":
-      return `
-⏰ ระบบแจ้งเตือนล่วงหน้า (Reminder Module)
-
-ใช้ตั้งแจ้งเตือนกิจกรรมล่วงหน้า 3 วัน และวันจริง
-
-🔹 ตัวอย่างคำสั่ง:
-เตือน ประชุมทีม 25/03/2026
-เตือน ค่ายเยาวชน 01/04/2026
-
-🔹 ระบบจะ:
-- แจ้งล่วงหน้า 3 วัน เวลา 07.00
-- แจ้งวันจริง เวลา 07.00
-
-🔹 คำสั่งดูรายการ:
-ดูแจ้งเตือน
-`;
-
-    case "4":
-      return `
-📝 ระบบบันทึกถาวร (Permanent Note Module)
-
-ใช้เก็บข้อความสำคัญไว้ดูย้อนหลังได้
-
-🔹 ตัวอย่างคำสั่ง:
-บันทึก วันนี้ประชุมทีมเวลา 18.00
-บันทึก เป้าหมายปีนี้ 200 คน
-
-🔹 คำสั่งดูย้อนหลัง:
-ดูบันทึก
-`;
-
-    case "5":
-      return `
-📘 ระบบรายงานการรับใช้ (Service Report Module)
-
-ใช้บันทึกรายงานการรับใช้รายสัปดาห์
-
-🔹 ตัวอย่างคำสั่ง:
-รายงาน วันนี้ออกเยี่ยม 5 หลังคา
-รายงาน แจกถุงยังชีพ 20 ชุด
-
-🔹 คำสั่งสรุป:
-สรุปรายสัปดาห์
-`;
-
-    case "6":
-      return `
-👤 ระบบทะเบียนสมาชิก (Registry Module)
-
-ใช้ลงทะเบียนสมาชิกหรือผู้ร่วมกิจกรรม
-
-🔹 ตัวอย่างคำสั่ง:
-ลงทะเบียน สมชาย ใจดี
-ลงทะเบียน นางสาวพรทิพย์
-
-🔹 ระบบจะบันทึกข้อมูลลงฐานข้อมูล
-`;
-
-    case "7":
-      return `
-📢 ระบบแจ้งเตือนทั่วไป (General Scheduler)
-
-ระบบแจ้งเตือนอัตโนมัติตามตาราง
-
-🔹 ตัวอย่างแจ้งเตือน:
-- ศุกร์ 12.00 ซ้อมนมัสการ
-- อาทิตย์ 09.00 แจ้ง hope channel
-- จันทร์ 12.00 โปรแกรมวันอาทิตย์
-
-🔹 คำสั่งเปิด/ปิดบางรายการ:
-เปิด ศุกร์12
-ปิด ศุกร์12
-ดูตาราง
-`;
-
-    case "8":
-      return `
-📊 ดูสถานะระบบ
-
-ใช้ตรวจสอบว่าในกลุ่มเปิดระบบอะไรอยู่บ้าง
-
-🔹 ตัวอย่างคำสั่ง:
-Smile เซ็ต8
-
-ระบบจะแสดง:
-✔ province
-✔ reminder
-✖ registry
-`;
-
-    default:
-      return "ไม่พบระบบนี้";
-  }
+  return "ใช้ help 1-8 เพื่อดูรายละเอียดแต่ละระบบ";
 }
 
 function buildStatus(group) {

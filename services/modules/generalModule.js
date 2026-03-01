@@ -1,59 +1,80 @@
-const cron = require("node-cron");
 const { getDB } = require("../../config/firebase");
-const { client } = require("../../config/line");
+const { reply } = require("../../config/line");
 
-async function broadcast(message, settingKey) {
+/* =========================================
+   ตาราง Hardcode
+========================================= */
+const SCHEDULE_TABLE = {
+  fri12: "ศุกร์ 12.00 - ซ้อมนมัสการ 16.30 น.",
+  sun9: "อาทิตย์ 09.00 - แจ้ง hope channel",
+  sun1130: "อาทิตย์ 11.30 - เพลงตอบสนอง",
+  mon12: "จันทร์ 12.00 - โปรแกรมวันอาทิตย์",
+  fri8: "ศุกร์/เสาร์ 08.00 - นัดประชุม 10.00-12.00",
+  sat15: "เสาร์ 15.00 - ชั้นสร้าง เจอกัน 18.00น."
+};
 
+/* =========================================
+   HANDLE
+========================================= */
+async function handle(event, group) {
+
+  const text = event.message.text.trim();
+  const groupId = event.source.groupId || event.source.userId;
   const db = getDB();
-  if (!db) return;
 
-  const groups = await db.collection("groups").get();
+  const docRef = db.collection("groups").doc(groupId);
+  const doc = await docRef.get();
+  const data = doc.data() || {};
 
-  for (const g of groups.docs) {
+  const settings = data.generalSettings || {};
 
-    const data = g.data();
+  /* ===============================
+     ดูตาราง
+  ================================ */
+  if (text === "ดูตาราง") {
 
-    if (!data.modules?.general) continue;
+    let msg = "📢 ตารางแจ้งเตือนทั่วไป\n\n";
 
-    const settings = data.generalSettings || {};
-    if (settings[settingKey] === false) continue;
-
-    await client.pushMessage(g.id, {
-      type: "text",
-      text: message
+    Object.keys(SCHEDULE_TABLE).forEach(key => {
+      const status = settings[key] === false ? "❌ ปิด" : "✔ เปิด";
+      msg += `${status} - ${SCHEDULE_TABLE[key]}\n`;
     });
 
-    console.log("📤 General sent:", settingKey, g.id);
+    return reply(event.replyToken, msg);
   }
+
+  /* ===============================
+     เปิด/ปิด รายการ
+     ตัวอย่าง:
+     เปิด fri12
+     ปิด fri12
+  ================================ */
+  if (text.startsWith("เปิด ") || text.startsWith("ปิด ")) {
+
+    const parts = text.split(" ");
+    const action = parts[0];
+    const key = parts[1];
+
+    if (!SCHEDULE_TABLE[key]) {
+      return reply(event.replyToken, "❌ ไม่พบรายการในตาราง");
+    }
+
+    const value = action === "เปิด";
+
+    await docRef.set({
+      generalSettings: {
+        ...settings,
+        [key]: value
+      }
+    }, { merge: true });
+
+    return reply(
+      event.replyToken,
+      `✅ ${action} ${SCHEDULE_TABLE[key]} เรียบร้อยแล้ว`
+    );
+  }
+
+  return false;
 }
 
-function startGeneralScheduler() {
-
-  console.log("⏰ General Scheduler Started");
-
-  cron.schedule("0 12 * * 5", async () => {
-    await broadcast("ซ้อมนมัสการ 16.30 นะครับ", "fri12");
-  }, { timezone: "Asia/Bangkok" });
-
-  cron.schedule("0 9 * * 0", async () => {
-    await broadcast("แจ้งเตือน hope channel มีไหมครับ ???", "sun9");
-  }, { timezone: "Asia/Bangkok" });
-
-  cron.schedule("30 11 * * 0", async () => {
-    await broadcast("เพลงตอบสนอง เพลงอะไร ???", "sun1130");
-  }, { timezone: "Asia/Bangkok" });
-
-  cron.schedule("0 12 * * 1", async () => {
-    await broadcast("โปรแกรมวันอาทิตย์...", "mon12");
-  }, { timezone: "Asia/Bangkok" });
-
-  cron.schedule("0 8 * * 5,6", async () => {
-    await broadcast("นัดประชุม 10.00-12.00", "fri8");
-  }, { timezone: "Asia/Bangkok" });
-
-  cron.schedule("0 15 * * 6", async () => {
-    await broadcast("ชั้นสร้าง เจอกัน 18.00น.", "sat15");
-  }, { timezone: "Asia/Bangkok" });
-}
-
-module.exports = { startGeneralScheduler };
+module.exports = { handle };
