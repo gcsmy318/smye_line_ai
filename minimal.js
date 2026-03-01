@@ -10,24 +10,42 @@ const { handleMessage } = require("./services/groupService");
 
 const app = express();
 
+/* =====================================================
+   🔥 START SERVER
+===================================================== */
+
 console.log("🚀 Starting server...");
+
 initFirebase();
 console.log("✅ Firebase initialized");
 
-/* LOAD SCHEDULER */
+/* =====================================================
+   🔥 LOAD SCHEDULER
+===================================================== */
+
 try {
   console.log("🔄 Loading Scheduler...");
+
   const { startScheduler } = require("./services/schedulers/masterScheduler");
+
   startScheduler();
+
   console.log("✅ Scheduler loaded successfully");
+
 } catch (err) {
   console.error("❌ Scheduler failed to load:", err);
 }
 
-/* STATIC */
+/* =====================================================
+   🔥 STATIC
+===================================================== */
+
 app.use(express.static(path.join(__dirname, "public")));
 
-/* WEBHOOK */
+/* =====================================================
+   🔥 WEBHOOK
+===================================================== */
+
 app.post(
   "/webhook",
   bodyParser.raw({ type: "application/json" }),
@@ -35,22 +53,33 @@ app.post(
   async (req, res) => {
     try {
       const events = req.body.events || [];
+
       for (const event of events) {
         if (event.type === "message" && event.message.type === "text") {
           await handleMessage(event);
         }
       }
+
       res.sendStatus(200);
+
     } catch (err) {
-      console.error("Webhook Error:", err);
+      console.error("❌ Webhook Error:", err);
       res.sendStatus(500);
     }
   }
 );
 
+/* =====================================================
+   🔥 HEALTH CHECK
+===================================================== */
+
 app.get("/health", (req, res) => {
   res.send("OK");
 });
+
+/* =====================================================
+   🔥 START LISTEN
+===================================================== */
 
 const PORT = process.env.PORT || 8080;
 

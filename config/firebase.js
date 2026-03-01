@@ -1,15 +1,19 @@
-
 const admin = require("firebase-admin");
+
 let db;
 
 function initFirebase() {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  db = admin.firestore();
+  if (!admin.apps.length) {
+    console.log("🔥 Initializing Firebase...");
+
+    admin.initializeApp({
+      credential: admin.credential.cert(
+        JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+      ),
+    });
+
+    db = admin.firestore();
+  }
 }
 
-function getDB() { return db; }
-
-module.exports = { initFirebase, getDB };
+module.exports = { initFirebase, db };

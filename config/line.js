@@ -1,15 +1,10 @@
+const line = require("@line/bot-sdk");
 
-const { Client } = require("@line/bot-sdk");
-const client = new Client({
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
-});
+const config = {
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.LINE_CHANNEL_SECRET,
+};
 
-async function reply(token, text) {
-  return client.replyMessage(token, { type: "text", text });
-}
+const client = new line.Client(config);
 
-async function push(to, text) {
-  return client.pushMessage(to, { type: "text", text });
-}
-
-module.exports = { reply, push };
+module.exports = { client };
