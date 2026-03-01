@@ -2,61 +2,28 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Spirit AI Admin Panel</title>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
-
-<style>
-body { font-family: Arial; background:#f5f5f5; padding:20px; }
-h1 { color:#333; }
-.card {
-  background:white;
-  padding:15px;
-  margin-bottom:15px;
-  border-radius:8px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.1);
-}
-button {
-  padding:6px 10px;
-  border:none;
-  border-radius:5px;
-  cursor:pointer;
-}
-.delete { background:#e74c3c; color:white; }
-.refresh { background:#3498db; color:white; margin-bottom:15px; }
-.module-on { color:green; }
-.module-off { color:red; }
-</style>
-</head>
-<body>
-
-<h1>🤖 Spirit AI Admin Panel</h1>
-
-<button class="refresh" onclick="loadGroups()">🔄 รีเฟรช</button>
-
-<div id="groups"></div>
+<title>Spirit AI Admin</title>
 
 <script type="module">
-
-// ============================
-// 🔥 ใส่ Firebase Config ของคุณ
-// ============================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  deleteDoc,
+  doc
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+/* 🔥 ใส่ Firebase Config ของคุณ */
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ============================
-// โหลดกลุ่มทั้งหมด
-// ============================
 async function loadGroups() {
 
   const container = document.getElementById("groups");
@@ -80,47 +47,72 @@ async function loadGroups() {
     const card = document.createElement("div");
     card.className = "card";
 
-    let html = `<h3>📌 Group ID: ${groupId}</h3>`;
+    let html = `<h3>📌 ${groupId}</h3>`;
     html += `<p><strong>Type:</strong> ${data.type || "-"}</p>`;
-    html += `<h4>Modules:</h4><ul>`;
+    html += "<ul>";
 
     Object.keys(modules).forEach(key => {
-      html += `<li>
-        ${key} :
-        <span class="${modules[key] ? 'module-on' : 'module-off'}">
-          ${modules[key] ? "✔ เปิดอยู่" : "✖ ปิดอยู่"}
-        </span>
-      </li>`;
+      html += `
+        <li>
+          ${key} :
+          <strong style="color:${modules[key] ? "green" : "red"}">
+            ${modules[key] ? "เปิด" : "ปิด"}
+          </strong>
+        </li>
+      `;
     });
 
     html += "</ul>";
 
-    html += `<button class="delete" onclick="deleteGroup('${groupId}')">
-      🗑 ลบกลุ่มนี้
-    </button>`;
+    html += `
+      <button onclick="deleteGroup('${groupId}')">
+        ลบกลุ่มนี้
+      </button>
+    `;
 
     card.innerHTML = html;
     container.appendChild(card);
   });
 }
 
-// ============================
-// ลบกลุ่ม
-// ============================
 window.deleteGroup = async function(groupId) {
 
   if (!confirm("ต้องการลบกลุ่มนี้จริงหรือไม่?")) return;
 
   await deleteDoc(doc(db, "groups", groupId));
-
   alert("ลบเรียบร้อยแล้ว");
   loadGroups();
 }
 
-// โหลดครั้งแรก
-loadGroups();
+window.onload = loadGroups;
 
 </script>
+
+<style>
+body {
+  font-family: Arial;
+  background:#f4f4f4;
+  padding:20px;
+}
+.card {
+  background:white;
+  padding:15px;
+  margin-bottom:15px;
+  border-radius:8px;
+  box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
+button {
+  padding:6px 12px;
+  cursor:pointer;
+}
+</style>
+
+</head>
+<body>
+
+<h1>🤖 Spirit AI Admin Panel</h1>
+<button onclick="loadGroups()">รีเฟรช</button>
+<div id="groups"></div>
 
 </body>
 </html>
