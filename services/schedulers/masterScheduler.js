@@ -30,8 +30,6 @@ function startSchedulers() {
 async function runReminderLogic(thaiNow) {
 
   const thaiHour = thaiNow.getHours();
-
-  // ยิงตั้งแต่ 07:00 เป็นต้นไป
   if (thaiHour < 7) return;
 
   const db = getDB();
@@ -39,10 +37,7 @@ async function runReminderLogic(thaiNow) {
 
   const snapshot = await db.collection("reminders").get();
 
-  if (snapshot.empty) {
-    console.log("📭 No reminders found");
-    return;
-  }
+  if (snapshot.empty) return;
 
   const grouped = {};
 
@@ -59,6 +54,7 @@ async function runReminderLogic(thaiNow) {
 
     let type = null;
 
+    // ยิงถ้าเป็นวันนี้ หรือเป็น 3 วันก่อน
     if (diff === 3 && !data.notifiedBefore) type = "before";
     if (diff === 0 && !data.notifiedToday) type = "today";
 
@@ -79,26 +75,18 @@ async function runReminderLogic(thaiNow) {
     const logRef = db.collection("schedulerLogs").doc(logId);
     const logDoc = await logRef.get();
 
-    if (logDoc.exists) {
-      console.log("Already sent today:", groupId);
-      continue;
-    }
+    // 🔥 ยิงย้อนหลังถ้ายังไม่มี log วันนี้
+    if (logDoc.exists) continue;
 
     const items = grouped[groupId];
 
-    let header = items[0].type === "before"
-      ? "🔔 แจ้งเตือนล่วงหน้า 3 วัน\n\n"
-      : "📌 แจ้งเตือนวันนี้\n\n";
-
-    let message = header;
+    let message = "📌 แจ้งเตือนที่ยังไม่ได้ส่งวันนี้\n\n";
 
     items.forEach(item => {
       message += `ID ${item.id || "-"} ${item.title || "-"} (${item.scheduleDate})\n`;
     });
 
     await pushMessage(groupId, message);
-
-    console.log("✅ Reminder sent to:", groupId);
 
     await logRef.set({
       groupId,
@@ -116,6 +104,8 @@ async function runReminderLogic(thaiNow) {
         await item.docRef.update({ notifiedToday: true });
       }
     }
+
+    console.log("🔥 Catch-up reminder sent:", groupId);
   }
 }
 
