@@ -2,58 +2,77 @@ const { db } = require("../../config/firebase");
 const { client } = require("../../config/line");
 const admin = require("firebase-admin");
 
-let lastRunDate = null;
+/* =====================================================
+   🔥 TIME UTIL (Thailand Time)
+===================================================== */
 
-function getTodayString() {
-  const now = new Date();
-  return now.toISOString().split("T")[0];
+function getThaiNow() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+  );
 }
 
-function isSevenAM() {
-  const now = new Date();
-  return now.getHours() === 7 && now.getMinutes() === 0;
+function getThaiDateString() {
+  return getThaiNow().toISOString().split("T")[0];
 }
+
+/* =====================================================
+   🔥 SAFE PUSH MESSAGE
+===================================================== */
 
 async function sendMessage(groupId, text) {
-  await client.pushMessage(groupId, {
-    type: "text",
-    text
-  });
+  try {
+    await client.pushMessage(groupId, {
+      type: "text",
+      text,
+    });
+  } catch (err) {
+    console.error("PushMessage Error:", err.message);
+  }
 }
+
+/* =====================================================
+   🔔 REMINDER HANDLER
+===================================================== */
 
 async function handleReminders() {
   const snapshot = await db.collection("reminders").get();
-  const todayThai = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
-  );
+  const nowThai = getThaiNow();
 
   const groupMapToday = {};
   const groupMapSeven = {};
 
-  snapshot.forEach(doc => {
+  snapshot.forEach((doc) => {
     const data = doc.data();
+    if (!data.eventDate || !data.groupId) return;
+
     const eventDate = data.eventDate.toDate();
 
     const diffDays = Math.ceil(
-      (eventDate - todayThai) / (1000 * 60 * 60 * 24)
+      (eventDate - nowThai) / (1000 * 60 * 60 * 24)
     );
 
+    // วันจริง
     if (diffDays === 0) {
-      if (!groupMapToday[data.groupId])
+      if (!groupMapToday[data.groupId]) {
         groupMapToday[data.groupId] = [];
+      }
       groupMapToday[data.groupId].push(data);
     }
 
+    // ล่วงหน้า 7 วัน
     if (diffDays === 7) {
-      if (!groupMapSeven[data.groupId])
+      if (!groupMapSeven[data.groupId]) {
         groupMapSeven[data.groupId] = [];
+      }
       groupMapSeven[data.groupId].push(data);
     }
   });
 
-  // แจ้งล่วงหน้า
+  // 🔔 แจ้งล่วงหน้า
   for (const groupId in groupMapSeven) {
     let msg = "🔔 แจ้งเตือนล่วงหน้า 7 วัน\n\n";
+
     groupMapSeven[groupId].forEach((r, i) => {
       msg += `${i + 1}. ${r.title}\n`;
     });
@@ -61,9 +80,10 @@ async function handleReminders() {
     await sendMessage(groupId, msg);
   }
 
-  // แจ้งวันจริง
+  // 📌 แจ้งวันจริง
   for (const groupId in groupMapToday) {
     let msg = "📌 วันนี้มีรายการสำคัญ\n\n";
+
     groupMapToday[groupId].forEach((r, i) => {
       msg += `${i + 1}. ${r.title}\n`;
     });
@@ -72,48 +92,78 @@ async function handleReminders() {
   }
 }
 
-async function handleProvinceReminder() {
-  const todayStr = getTodayString();
-  const doc = await db.collection("weeklyProvinceStats").doc(todayStr).get();
+/* =====================================================
+   📢 PROVINCE REMINDER
+   - ถ้าวันนี้ยังไม่มีรายงาน
+   - และ module เปิดอยู่
+===================================================== */
 
-  if (doc.exists) return;
+async function handleProvinceReminder() {
+  const todayStr = getThaiDateString();
+
+  const statDoc = await db
+    .collection("weeklyProvinceStats")
+    .doc(todayStr)
+    .get();
+
+  if (statDoc.exists) return;
 
   const groupsSnapshot = await db.collection("groups").get();
 
-  for (const g of groupsSnapshot.docs) {
-    const data = g.data();
+  for (const groupDoc of groupsSnapshot.docs) {
+    const groupData = groupDoc.data();
 
-    if (data.modules?.province) {
+    if (groupData.modules?.province) {
       await sendMessage(
-        g.id,
+        groupDoc.id,
         "📢 แจ้งเตือนรายงานจังหวัด\nวันนี้ยังไม่มีจังหวัดส่งสถิติ"
       );
     }
   }
 }
-async function scheduler() {
-  const nowThai = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
-  );
 
+/* =====================================================
+   🔥 MAIN SCHEDULER
+   - ยิงตอน 7:00 - 7:59 ไทย
+   - ไม่ยิงซ้ำแม้ restart
+===================================================== */
+
+async function scheduler() {
+  const nowThai = getThaiNow();
+
+  // ยิงเฉพาะชั่วโมง 7 โมงเช้า
   if (nowThai.getHours() !== 7) return;
 
-  const todayStr = nowThai.toISOString().split("T")[0];
+  const todayStr = getThaiDateString();
 
   const logRef = db.collection("schedulerLogs").doc(todayStr);
   const logDoc = await logRef.get();
 
+  // ถ้าวันนี้รันแล้ว → หยุด
   if (logDoc.exists) return;
 
-  await handleReminders();
-  await handleProvinceReminder();
+  console.log("🔔 Running Scheduler:", todayStr);
 
-  await logRef.set({
-    ranAt: admin.firestore.FieldValue.serverTimestamp()
-  });
+  try {
+    await handleReminders();
+    await handleProvinceReminder();
+
+    await logRef.set({
+      ranAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log("✅ Scheduler Completed");
+  } catch (err) {
+    console.error("Scheduler Error:", err);
+  }
 }
 
+/* =====================================================
+   🔄 START SCHEDULER LOOP
+===================================================== */
+
 function startScheduler() {
+  console.log("⏰ Scheduler started (checking every 60s)");
   setInterval(scheduler, 60000);
 }
 
