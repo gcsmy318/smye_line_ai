@@ -35,9 +35,13 @@ async function handleReminders() {
     snapshot.forEach(doc => {
 
       const data = doc.data();
-      if (!data.eventDate || !data.groupId) return;
 
-      const eventDate = data.eventDate.toDate();
+      // 🔥 แก้ตรงนี้
+      if (!data.targetDate || !data.groupId) return;
+
+      const eventDate = data.targetDate.toDate
+        ? data.targetDate.toDate()
+        : new Date(data.targetDate);
 
       const diffDays = Math.ceil(
         (eventDate - nowThai) / (1000 * 60 * 60 * 24)
