@@ -5,6 +5,7 @@ const { reply } = require("../../config/line");
    MAIN HANDLE
 ========================================= */
 async function handle(event) {
+
   const text = event.message.text.trim();
   const normalized = text.toLowerCase();
   const groupId = event.source.groupId || event.source.userId;
@@ -20,9 +21,9 @@ async function handle(event) {
     return listReminders(event, groupId);
   }
 
-if (normalized === "ดูแจ้งเตือนที่ผ่านไปแล้ว") {
-  return listPastReminders(event, groupId);
-}
+  if (normalized === "ดูแจ้งเตือนที่ผ่านไปแล้ว") {
+    return listPastReminders(event, groupId);
+  }
 
   if (normalized.startsWith("ลบแจ้งเตือน ")) {
     return deleteReminder(event, groupId);
@@ -39,7 +40,7 @@ async function createReminder(event, groupId) {
   const db = getDB();
   const eventId = event.message.id;
 
-  // 🔒 กัน duplicate event
+  // 🔒 กัน duplicate event จาก LINE
   const exist = await db.collection("processedEvents")
     .doc(eventId)
     .get();
@@ -60,15 +61,15 @@ async function createReminder(event, groupId) {
   const title = parts.join(" ");
 
   const parsedDate = parseDate(dateStr);
+
   if (!parsedDate) {
     return reply(event.replyToken, "รูปแบบวันที่ไม่ถูกต้อง");
   }
 
-  // ใช้ auto id
-  const docRef = db.collection("reminders").doc();
-  const id = docRef.id;
+  // 🔢 สร้าง ID 5 หลัก
+  const id = await generateShortId(db);
 
-  await docRef.set({
+  await db.collection("reminders").doc(id).set({
     groupId,
     title,
     originalDate: dateStr,
@@ -76,22 +77,24 @@ async function createReminder(event, groupId) {
     createdAt: new Date()
   });
 
-  // บันทึกว่า event นี้ใช้แล้ว
   await db.collection("processedEvents").doc(eventId).set({
     createdAt: new Date()
   });
 
+  console.log("Reminder created:", id, title);
+
   // ✅ แสดงแค่รายการเดียว
   return reply(
     event.replyToken,
-    `✅ บันทึกแจ้งเตือนแล้ว ID ${id} ${title} `
+    `✅ บันทึกแจ้งเตือนแล้ว\nID ${id} - ${title}`
   );
 }
 
 /* =========================================
-   LIST REMINDERS (ครบทุกอันในข้อความเดียว)
+   LIST REMINDERS
 ========================================= */
 async function listReminders(event, groupId) {
+
   const db = getDB();
 
   const snapshot = await db.collection("reminders")
@@ -106,15 +109,15 @@ async function listReminders(event, groupId) {
   msg += "----------------------------------\n";
 
   snapshot.forEach(doc => {
+
     const data = doc.data();
 
     const dateText =
       data.originalDate ||
-      data.date ||
       (data.targetDate
         ? formatDate(data.targetDate.toDate
-            ? data.targetDate.toDate()
-            : new Date(data.targetDate))
+          ? data.targetDate.toDate()
+          : new Date(data.targetDate))
         : "-");
 
     msg += `- ID ${doc.id} ${data.title} วันที่ ${dateText}\n`;
@@ -126,6 +129,9 @@ async function listReminders(event, groupId) {
   return reply(event.replyToken, msg);
 }
 
+/* =========================================
+   LIST PAST REMINDERS
+========================================= */
 async function listPastReminders(event, groupId) {
 
   const db = getDB();
@@ -155,7 +161,7 @@ async function listPastReminders(event, groupId) {
 
     if (target < now) {
       found = true;
-      msg += `- ${data.title} (${data.originalDate || "-"})\n`;
+      msg += `- ID ${doc.id} ${data.title} (${data.originalDate || "-"})\n`;
     }
   });
 
@@ -166,14 +172,11 @@ async function listPastReminders(event, groupId) {
   return reply(event.replyToken, msg);
 }
 
-function formatDate(d) {
-  return d.toLocaleDateString("th-TH");
-}
-
 /* =========================================
    DELETE REMINDER
 ========================================= */
 async function deleteReminder(event, groupId) {
+
   const text = event.message.text.trim();
   const id = text.replace("ลบแจ้งเตือน", "").trim();
   const db = getDB();
@@ -195,11 +198,36 @@ async function deleteReminder(event, groupId) {
 
   await docRef.delete();
 
+  console.log("Reminder deleted:", id);
+
   return reply(event.replyToken, `ลบแจ้งเตือน ID ${id} แล้ว`);
 }
 
 /* =========================================
-   PARSE DATE (รองรับ พ.ศ. / ค.ศ.)
+   GENERATE 5-CHAR ID
+========================================= */
+async function generateShortId(db) {
+
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+  while (true) {
+
+    let id = "";
+
+    for (let i = 0; i < 5; i++) {
+      id += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    const exist = await db.collection("reminders").doc(id).get();
+
+    if (!exist.exists) {
+      return id;
+    }
+  }
+}
+
+/* =========================================
+   PARSE DATE (รองรับหลาย format)
 ========================================= */
 function parseDate(dateStr) {
 
@@ -207,7 +235,6 @@ function parseDate(dateStr) {
 
   const clean = dateStr.trim();
 
-  // รองรับ 1/3/2026 หรือ 01/03/2569
   const match = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!match) return null;
 
@@ -215,7 +242,7 @@ function parseDate(dateStr) {
   let month = parseInt(match[2], 10) - 1;
   let year = parseInt(match[3], 10);
 
-  // ถ้าเป็น พ.ศ.
+  // รองรับ พ.ศ.
   if (year > 2400) {
     year -= 543;
   }
@@ -225,6 +252,10 @@ function parseDate(dateStr) {
   if (isNaN(date.getTime())) return null;
 
   return date;
+}
+
+function formatDate(d) {
+  return d.toLocaleDateString("th-TH");
 }
 
 module.exports = { handle };
