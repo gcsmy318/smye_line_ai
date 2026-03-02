@@ -84,13 +84,27 @@ async function listReminders(event, groupId) {
 
   snapshot.forEach(doc => {
     const data = doc.data();
-    msg += `- ID ${doc.id} ${data.title} วันที่ ${data.originalDate}\n`;
+
+    const dateText =
+      data.originalDate ||
+      data.date ||
+      (data.targetDate
+        ? formatDate(data.targetDate.toDate
+            ? data.targetDate.toDate()
+            : new Date(data.targetDate))
+        : "-");
+
+    msg += `- ID ${doc.id} ${data.title} วันที่ ${dateText}\n`;
   });
 
   msg += "----------------------------------\n";
   msg += "ลบโดยพิมพ์: ลบแจ้งเตือน <ID>";
 
   return reply(event.replyToken, msg);
+}
+
+function formatDate(d) {
+  return d.toLocaleDateString("th-TH");
 }
 
 /* =========================================
