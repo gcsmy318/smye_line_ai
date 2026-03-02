@@ -20,6 +20,10 @@ async function handle(event) {
     return listReminders(event, groupId);
   }
 
+if (normalized === "ดูแจ้งเตือนที่ผ่านไปแล้ว") {
+  return listPastReminders(event, groupId);
+}
+
   if (normalized.startsWith("ลบแจ้งเตือน ")) {
     return deleteReminder(event, groupId);
   }
@@ -103,6 +107,46 @@ async function listReminders(event, groupId) {
   return reply(event.replyToken, msg);
 }
 
+async function listPastReminders(event, groupId) {
+
+  const db = getDB();
+  const now = new Date();
+
+  const snapshot = await db.collection("reminders")
+    .where("groupId", "==", groupId)
+    .get();
+
+  if (snapshot.empty) {
+    return reply(event.replyToken, "ยังไม่มีรายการแจ้งเตือน");
+  }
+
+  let msg = "📜 แจ้งเตือนที่ผ่านมา\n";
+  msg += "----------------------------------\n";
+
+  let found = false;
+
+  snapshot.forEach(doc => {
+
+    const data = doc.data();
+    if (!data.targetDate) return;
+
+    const target = data.targetDate.toDate
+      ? data.targetDate.toDate()
+      : new Date(data.targetDate);
+
+    if (target < now) {
+      found = true;
+      msg += `- ${data.title} (${data.originalDate || "-"})\n`;
+    }
+  });
+
+  if (!found) {
+    msg += "ไม่มีรายการที่ผ่านมา";
+  }
+
+  return reply(event.replyToken, msg);
+}
+
 function formatDate(d) {
   return d.toLocaleDateString("th-TH");
 }
@@ -139,19 +183,25 @@ async function deleteReminder(event, groupId) {
    PARSE DATE (รองรับ พ.ศ. / ค.ศ.)
 ========================================= */
 function parseDate(dateStr) {
-  const match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  if (!dateStr) return null;
+
+  const clean = dateStr.trim();
+
+  // รองรับ 1/3/2026 หรือ 01/03/2569
+  const match = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!match) return null;
 
-  let day = parseInt(match[1]);
-  let month = parseInt(match[2]) - 1;
-  let year = parseInt(match[3]);
+  let day = parseInt(match[1], 10);
+  let month = parseInt(match[2], 10) - 1;
+  let year = parseInt(match[3], 10);
 
-  // ถ้าเป็น พ.ศ. (มากกว่า 2400) แปลงเป็น ค.ศ.
+  // ถ้าเป็น พ.ศ.
   if (year > 2400) {
     year -= 543;
   }
 
-  const date = new Date(year, month, day);
+  const date = new Date(year, month, day, 7, 0, 0);
 
   if (isNaN(date.getTime())) return null;
 
