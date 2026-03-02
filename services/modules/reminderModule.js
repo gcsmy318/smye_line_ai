@@ -35,10 +35,23 @@ if (normalized === "ดูแจ้งเตือนที่ผ่านไป
    CREATE REMINDER
 ========================================= */
 async function createReminder(event, groupId) {
-  const text = event.message.text.trim();
-  const db = getDB();
 
+  const db = getDB();
+  const eventId = event.message.id;
+
+  // 🔒 กัน duplicate event
+  const exist = await db.collection("processedEvents")
+    .doc(eventId)
+    .get();
+
+  if (exist.exists) {
+    console.log("Duplicate blocked:", eventId);
+    return;
+  }
+
+  const text = event.message.text.trim();
   const parts = text.replace("แจ้งเตือน", "").trim().split(" ");
+
   if (parts.length < 2) {
     return reply(event.replyToken, "รูปแบบ: แจ้งเตือน เรื่อง dd/mm/yyyy");
   }
@@ -51,14 +64,11 @@ async function createReminder(event, groupId) {
     return reply(event.replyToken, "รูปแบบวันที่ไม่ถูกต้อง");
   }
 
-  // generate ID แบบ 001,002
-  const snapshot = await db.collection("reminders")
-    .where("groupId", "==", groupId)
-    .get();
+  // ใช้ auto id
+  const docRef = db.collection("reminders").doc();
+  const id = docRef.id;
 
-  const id = String(snapshot.size + 1).padStart(3, "0");
-
-  await db.collection("reminders").doc(id).set({
+  await docRef.set({
     groupId,
     title,
     originalDate: dateStr,
@@ -66,7 +76,16 @@ async function createReminder(event, groupId) {
     createdAt: new Date()
   });
 
-  return listReminders(event, groupId);
+  // บันทึกว่า event นี้ใช้แล้ว
+  await db.collection("processedEvents").doc(eventId).set({
+    createdAt: new Date()
+  });
+
+  // ✅ แสดงแค่รายการเดียว
+  return reply(
+    event.replyToken,
+    `✅ บันทึกแจ้งเตือนแล้ว ID ${id} ${title} `
+  );
 }
 
 /* =========================================

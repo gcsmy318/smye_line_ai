@@ -1,5 +1,5 @@
 const { getDB } = require("../config/firebase");
-const { reply } = require("../config/line");
+const { client } = require("../config/line");
 
 const province = require("./modules/provinceModule");
 const hatyai = require("./modules/hatyaiModule");
@@ -8,6 +8,10 @@ const note = require("./modules/permanentNoteModule");
 const report = require("./modules/serviceReportModule");
 const registry = require("./modules/registryModule");
 const general = require("./modules/generalModule");
+
+/* ===================================================== */
+
+const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
 
 const DEFAULT_MODULES = {
   province: false,
@@ -20,16 +24,31 @@ const DEFAULT_MODULES = {
 };
 
 /* ===================================================== */
-async function safeReply(token, message) {
+/* 🔥 PUSH + LOG (console อย่างเดียว) */
+/* ===================================================== */
+
+async function safeReply(message) {
   try {
-    if (!token || !message) return;
-    await reply(token, message);
+
+    if (!message) return;
+
+    await client.pushMessage(TARGET_GROUP, {
+      type: "text",
+      text: message
+    });
+
+    console.log("📤 Sent to:", TARGET_GROUP);
+    console.log("📝 Message:", message);
+
   } catch (err) {
-    console.error("Reply Error:", err.message);
+    console.error("Push Error:", err.message);
   }
 }
 
 /* ===================================================== */
+/* ENTRY POINT */
+/* ===================================================== */
+
 async function handleMessage(event) {
 
   try {
@@ -45,20 +64,22 @@ async function handleMessage(event) {
     const normalized = text.toLowerCase();
 
     /* ===============================
-       HELP รองรับ help7 / help 7
+       HELP
     ================================ */
+
     const helpMatch = normalized.match(/^help\s*([1-8])$/);
     if (helpMatch) {
-      return safeReply(event.replyToken, buildModuleDetail(helpMatch[1]));
+      return safeReply(buildModuleDetail(helpMatch[1]));
     }
 
     if (isHelpCommand(normalized)) {
-      return safeReply(event.replyToken, buildMainMenu());
+      return safeReply(buildMainMenu());
     }
 
     /* ===============================
-       ใช้ DB หลังจากนี้
+       DB
     ================================ */
+
     const db = getDB();
     const docRef = db.collection("groups").doc(groupId);
     const doc = await docRef.get();
@@ -73,22 +94,23 @@ async function handleMessage(event) {
     const group = (await docRef.get()).data() || {};
     const modules = group.modules || DEFAULT_MODULES;
 
-    /* ===== SET COMMAND ===== */
+    /* ===============================
+       SET COMMAND
+    ================================ */
+
     if (normalized.startsWith("smile")) {
+
       const command = normalized.replace("smile", "").trim();
+
       if (command.startsWith("เซ็ต")) {
-        return handleSetCommand(command, docRef, event);
+        return handleSetCommand(command, docRef);
       }
     }
 
+    /* ===============================
+       ROUTER MODULE (เหมือนเดิม)
+    ================================ */
 
-
-    if (normalized === "ดูตาราง") {
-      return safeReply(event.replyToken,
-        "ใช้ help 7 เพื่อดูรายละเอียดระบบแจ้งเตือนทั่วไป");
-    }
-
-    /* ===== ROUTER MODULE ===== */
     try { if (modules.province && await province.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.hatyai && await hatyai.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.reminder && await reminder.handle(event, group)) return; } catch(e){ console.error(e); }
@@ -103,7 +125,10 @@ async function handleMessage(event) {
 }
 
 /* ===================================================== */
-async function handleSetCommand(text, docRef, event) {
+/* HANDLE SET */
+/* ===================================================== */
+
+async function handleSetCommand(text, docRef) {
 
   const setMap = {
     "เซ็ต1": "province",
@@ -123,7 +148,7 @@ async function handleSetCommand(text, docRef, event) {
 
   if (moduleName === "status") {
     const group = (await docRef.get()).data() || {};
-    return safeReply(event.replyToken, buildStatus(group));
+    return safeReply(buildStatus(group));
   }
 
   await docRef.set({
@@ -135,22 +160,26 @@ async function handleSetCommand(text, docRef, event) {
   let msg = `✅ เปิดระบบ ${moduleName} เรียบร้อยแล้ว\n\n`;
   msg += buildStatus(updated);
 
-  return safeReply(event.replyToken, msg);
+  return safeReply(msg);
 }
 
 /* ===================================================== */
+/* MENU */
+/* ===================================================== */
+
 function buildMainMenu() {
   return `
 🤖 Spirit AI เมนูหลัก
 
 Smile เซ็ต1 - เซ็ต8 เปิดระบบ
-help 1 - help 8 ดูรายละเอียดแต่ละระบบ
-ดูแจ้งเตือน
-ดูรายงานแจ้งเตือน
+help 1 - help 8 ดูรายละเอียด
 `;
 }
 
 /* ===================================================== */
+/* HELP DETAIL */
+/* ===================================================== */
+
 function buildModuleDetail(number) {
 
   switch (number) {
@@ -167,8 +196,8 @@ function buildModuleDetail(number) {
 หาดใหญ่ 120 คน
 เด็ก 30 คน`;
 
-case "3":
-  return `
+    case "3":
+      return `
 ⏰ ระบบแจ้งเตือนล่วงหน้า
 
 พิมพ์:
@@ -177,16 +206,12 @@ case "3":
 รองรับรูปแบบวันที่:
 1/3/2026
 01/03/2026
-1/3/2569 (พ.ศ.)
+1/3/2569
 
 คำสั่ง:
 ดูแจ้งเตือน
 ดูแจ้งเตือนที่ผ่านไปแล้ว
 ลบแจ้งเตือน <ID>
-
-ระบบจะ:
-- แจ้งล่วงหน้า 3 วัน เวลา 07.00
-- แจ้งวันจริง เวลา 07.00
 `;
 
     case "4":
@@ -207,15 +232,7 @@ case "3":
 ลงทะเบียน สมชาย ใจดี`;
 
     case "7":
-      return `📢 ระบบแจ้งเตือนทั่วไป (General)
-
-แจ้งเตือนอัตโนมัติ:
-ศุกร์ 12.00 ซ้อมนมัสการ
-อาทิตย์ 09.00 Hope Channel
-อาทิตย์ 11.30 เพลงตอบสนอง
-จันทร์ 12.00 โปรแกรมวันอาทิตย์
-ศุกร์/เสาร์ 08.00 นัดประชุม
-เสาร์ 15.00 ชั้นสร้าง
+      return `📢 ระบบแจ้งเตือนทั่วไป
 
 คำสั่ง:
 ดูตาราง
@@ -233,12 +250,18 @@ Smile เซ็ต8`;
 }
 
 /* ===================================================== */
+/* STATUS */
+/* ===================================================== */
+
 function buildStatus(group) {
+
   let msg = "📊 สถานะระบบ\n\n";
   const modules = group.modules || {};
+
   Object.keys(DEFAULT_MODULES).forEach(k => {
     msg += modules[k] ? `✔ ${k}\n` : `✖ ${k}\n`;
   });
+
   return msg;
 }
 

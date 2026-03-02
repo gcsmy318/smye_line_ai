@@ -115,11 +115,11 @@ async function handleProvinceReminder() {
 
       if (!data.modules?.province) continue;
 
- /*     await client.pushMessage(g.id, {
+     await client.pushMessage(g.id, {
         type: "text",
-        text: "📢 วันนี้ยังไม่มีจังหวัดส่งสถิติ"
+        text: "📢 รบกวนผู้นำทุกท่านส่งสถิติด้วยนะครับ ขอบคุณครับ"
       });
-*/
+
       console.log("📤 Province reminder sent:", g.id);
     }
 
@@ -146,8 +146,8 @@ function startScheduler() {
 
   setTimeout(async () => {
     console.log("🚀 Startup Check");
-    await handleReminders();
-    await handleProvinceReminder();
+ //   await handleReminders();
+  //  await handleProvinceReminder();
   }, 5000);
 }
 
