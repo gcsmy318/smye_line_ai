@@ -81,14 +81,7 @@ async function handleMessage(event) {
       }
     }
 
-    /* ===== ดูแจ้งเตือน ===== */
-    if (normalized === "ดูแจ้งเตือน") {
-      return showReminders(db, groupId, event);
-    }
 
-    if (normalized === "ดูรายงานแจ้งเตือน") {
-      return showNotificationLogs(db, groupId, event);
-    }
 
     if (normalized === "ดูตาราง") {
       return safeReply(event.replyToken,

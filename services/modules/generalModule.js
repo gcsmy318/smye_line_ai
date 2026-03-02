@@ -1,22 +1,26 @@
 const { getDB } = require("../../config/firebase");
 const { reply } = require("../../config/line");
 
-/* =========================================
-   ตาราง Hardcode
-========================================= */
-const SCHEDULE_TABLE = {
+/* ตารางที่ใช้ใน Scheduler ต้อง key ตรงกัน */
+const SCHEDULE_MAP = {
+  "ศุกร์12": "fri12",
+  "อาทิตย์9": "sun9",
+  "อาทิตย์1130": "sun1130",
+  "จันทร์12": "mon12",
+  "ศุกร์8": "fri8",
+  "เสาร์15": "sat15"
+};
+
+const SCHEDULE_TEXT = {
   fri12: "ศุกร์ 12.00 - ซ้อมนมัสการ 16.30 น.",
   sun9: "อาทิตย์ 09.00 - แจ้ง hope channel",
   sun1130: "อาทิตย์ 11.30 - เพลงตอบสนอง",
   mon12: "จันทร์ 12.00 - โปรแกรมวันอาทิตย์",
-  fri8: "ศุกร์/เสาร์ 08.00 - นัดประชุม 10.00-12.00",
-  sat15: "เสาร์ 15.00 - ชั้นสร้าง เจอกัน 18.00น."
+  fri8: "ศุกร์/เสาร์ 08.00 - นัดประชุม",
+  sat15: "เสาร์ 15.00 - ชั้นสร้าง 18.00 น."
 };
 
-/* =========================================
-   HANDLE
-========================================= */
-async function handle(event, group) {
+async function handle(event) {
 
   const text = event.message.text.trim();
   const groupId = event.source.groupId || event.source.userId;
@@ -25,7 +29,6 @@ async function handle(event, group) {
   const docRef = db.collection("groups").doc(groupId);
   const doc = await docRef.get();
   const data = doc.data() || {};
-
   const settings = data.generalSettings || {};
 
   /* ===============================
@@ -35,28 +38,29 @@ async function handle(event, group) {
 
     let msg = "📢 ตารางแจ้งเตือนทั่วไป\n\n";
 
-    Object.keys(SCHEDULE_TABLE).forEach(key => {
+    Object.keys(SCHEDULE_TEXT).forEach(key => {
       const status = settings[key] === false ? "❌ ปิด" : "✔ เปิด";
-      msg += `${status} - ${SCHEDULE_TABLE[key]}\n`;
+      msg += `${status} - ${SCHEDULE_TEXT[key]}\n`;
     });
+
+    msg += "\nตัวอย่างคำสั่ง:\nเปิด ศุกร์12\nปิด ศุกร์12";
 
     return reply(event.replyToken, msg);
   }
 
   /* ===============================
-     เปิด/ปิด รายการ
-     ตัวอย่าง:
-     เปิด fri12
-     ปิด fri12
+     เปิด/ปิด ภาษาไทย
   ================================ */
   if (text.startsWith("เปิด ") || text.startsWith("ปิด ")) {
 
     const parts = text.split(" ");
     const action = parts[0];
-    const key = parts[1];
+    const label = parts[1];
 
-    if (!SCHEDULE_TABLE[key]) {
-      return reply(event.replyToken, "❌ ไม่พบรายการในตาราง");
+    const key = SCHEDULE_MAP[label];
+
+    if (!key) {
+      return reply(event.replyToken, "❌ ไม่พบรายการ เช่น เปิด ศุกร์12");
     }
 
     const value = action === "เปิด";
@@ -70,7 +74,7 @@ async function handle(event, group) {
 
     return reply(
       event.replyToken,
-      `✅ ${action} ${SCHEDULE_TABLE[key]} เรียบร้อยแล้ว`
+      `✅ ${action} ${SCHEDULE_TEXT[key]} เรียบร้อยแล้ว`
     );
   }
 
