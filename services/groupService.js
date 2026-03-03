@@ -1,7 +1,6 @@
 const { getDB } = require("../config/firebase");
 const { client } = require("../config/line");
 
-
 const reminder = require("./modules/reminderModule");
 const note = require("./modules/permanentNoteModule");
 const report = require("./modules/serviceReportModule");
@@ -45,6 +44,25 @@ async function safeReply(message) {
 }
 
 /* ===================================================== */
+/* 🔥 MASTER RECALL (ยิงทุกกลุ่ม) */
+/* ===================================================== */
+
+async function runMasterRecall() {
+
+  console.log("🚀 Master Recall Started");
+
+  if (typeof reminder.runMissedReminderAllGroups === "function") {
+    await reminder.runMissedReminderAllGroups();
+  }
+
+  if (typeof general.runMissedGeneralAllGroups === "function") {
+    await general.runMissedGeneralAllGroups();
+  }
+
+  console.log("✅ Master Recall Completed");
+}
+
+/* ===================================================== */
 /* ENTRY POINT */
 /* ===================================================== */
 
@@ -63,7 +81,7 @@ async function handleMessage(event) {
     const normalized = text.toLowerCase();
 
     /* ===============================
-       🔥 เรียกแจ้งเตือนที่อาจพลาด (เฉพาะกลุ่มนี้เท่านั้น)
+       🔥 เรียกแจ้งเตือน Master (เฉพาะกลุ่มนี้)
     ================================ */
 
     if (
@@ -71,15 +89,16 @@ async function handleMessage(event) {
       normalized === "เรียกแจ้งเตือน"
     ) {
       try {
-        if (typeof reminder.runMissedReminder === "function") {
-          await reminder.runMissedReminder(groupId);
-          return safeReply("✅ ระบบตรวจสอบแจ้งเตือนที่อาจพลาดไปแล้ว");
-        } else {
-          return safeReply("⚠️ ระบบยังไม่รองรับฟังก์ชัน runMissedReminder");
-        }
+
+        await runMasterRecall();
+
+        return safeReply(
+          "✅ ระบบเรียกแจ้งเตือนย้อนหลัง (General + Reminder) ทุกกลุ่มเรียบร้อยแล้ว"
+        );
+
       } catch (err) {
         console.error(err);
-        return safeReply("❌ เกิดข้อผิดพลาดในการเรียกแจ้งเตือน");
+        return safeReply("❌ เกิดข้อผิดพลาดในการเรียก Master Recall");
       }
     }
 
@@ -130,7 +149,6 @@ async function handleMessage(event) {
     /* ===============================
        ROUTER MODULE (เหมือนเดิม)
     ================================ */
-
 
     try { if (modules.reminder && await reminder.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.permanentNote && await note.handle(event, group)) return; } catch(e){ console.error(e); }
