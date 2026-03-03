@@ -1,8 +1,7 @@
 const { getDB } = require("../config/firebase");
 const { client } = require("../config/line");
 
-const province = require("./modules/provinceModule");
-const hatyai = require("./modules/hatyaiModule");
+
 const reminder = require("./modules/reminderModule");
 const note = require("./modules/permanentNoteModule");
 const report = require("./modules/serviceReportModule");
@@ -132,8 +131,7 @@ async function handleMessage(event) {
        ROUTER MODULE (เหมือนเดิม)
     ================================ */
 
-    try { if (modules.province && await province.handle(event, group)) return; } catch(e){ console.error(e); }
-    try { if (modules.hatyai && await hatyai.handle(event, group)) return; } catch(e){ console.error(e); }
+
     try { if (modules.reminder && await reminder.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.permanentNote && await note.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.serviceReport && await report.handle(event, group)) return; } catch(e){ console.error(e); }
@@ -229,8 +227,6 @@ function buildModuleDetail(number, groupId) {
 ใช้สำหรับให้ระบบตรวจสอบแจ้งเตือนที่อาจพลาดไปทันที
 กรณี cron ไม่ทำงานหรือ server รีสตาร์ท
 
-เอกสาร:
-https://your-domain.com/docs/reminder
 `;
       }
 
