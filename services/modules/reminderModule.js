@@ -1,4 +1,3 @@
-const cron = require("node-cron");
 const { getDB } = require("../../config/firebase");
 const { client } = require("../../config/line");
 
@@ -15,10 +14,6 @@ function toThaiDateOnly(date) {
     new Date(date).toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
   );
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function isReportDay(date) {
-  return [0, 1, 2, 5].includes(date.getDay());
 }
 
 /* ================= REMINDER ================= */
@@ -93,67 +88,4 @@ async function handleReminders() {
   }
 }
 
-/* ================= PROVINCE ================= */
-
-async function handleProvinceReminder() {
-
-  try {
-
-    const db = getDB();
-    if (!db) return;
-
-    const today = getThaiNow();
-    if (!isReportDay(today)) return;
-
-    const todayStr = today.toISOString().split("T")[0];
-
-    const doc = await db
-      .collection("weeklyProvinceStats")
-      .doc(todayStr)
-      .get();
-
-    if (doc.exists) return;
-
-    const groups = await db.collection("groups").get();
-
-    for (const g of groups.docs) {
-
-      const data = g.data();
-
-      if (!data.modules?.province) continue;
-
-      await client.pushMessage(g.id, {
-        type: "text",
-        text: "📢 รบกวนผู้นำทุกท่านส่งสถิติด้วยนะครับ ขอบคุณครับ"
-      });
-
-      console.log("📤 Province reminder sent:", g.id);
-    }
-
-  } catch (err) {
-    console.error("Province Reminder Error:", err);
-  }
-}
-
-/* ================= START ================= */
-
-function startScheduler() {
-
-  console.log("⏰ Master Scheduler Started");
-
-  cron.schedule("0 7 * * *", async () => {
-    console.log("🔔 7AM Reminder");
-    await handleReminders();
-  }, { timezone: "Asia/Bangkok" });
-
-  cron.schedule("0 8 * * 0,1,2,5", async () => {
-    console.log("📢 8AM Province");
-    await handleProvinceReminder();
-  }, { timezone: "Asia/Bangkok" });
-
-  setTimeout(async () => {
-    console.log("🚀 Startup Check");
-  }, 5000);
-}
-
-module.exports = { startScheduler };
+module.exports = { handleReminders };

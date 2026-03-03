@@ -1,13 +1,13 @@
 const cron = require("node-cron");
 const { getDB } = require("../../config/firebase");
 const { client } = require("../../config/line");
-
+const { handleReminders } = require("../modules/reminderModule");
 /* =====================================================
    UTIL: คำนวณวันอาทิตย์ถัดไป
 ===================================================== */
 function getNextSunday() {
   const now = new Date();
-  const day = now.getDay(); // 0 = Sunday
+  const day = now.getDay();
   const diff = day === 0 ? 7 : 7 - day;
   const nextSunday = new Date(now);
   nextSunday.setDate(now.getDate() + diff);
@@ -17,13 +17,14 @@ function getNextSunday() {
 function formatThaiDate(date) {
   const day = date.getDate();
   const month = date.toLocaleDateString("th-TH", { month: "short" });
-  const year = date.getFullYear() + 543; // พ.ศ.
+  const year = date.getFullYear() + 543;
   return `${day} ${month} ${year}`;
 }
 
 /* =====================================================
    TEMPLATE ข้อความ
 ===================================================== */
+
 function buildFriday12() {
   return `🔔 แจ้งเตือนวันนี้ ซ้อมนมัสการ 16.30 นะครับ`;
 }
@@ -80,14 +81,18 @@ BS :
 **********************`;
 }
 
-
 function buildSaturday15() {
   return `📣 แจ้งเตือน ชั้นสร้าง เจอกัน 18.00 น.`;
+}
+
+function buildMorningStats() {
+  return `📢 รบกวนผู้นำทุกท่านส่งสถิติด้วยนะครับ ขอบคุณครับ`;
 }
 
 /* =====================================================
    BROADCAST
 ===================================================== */
+
 async function broadcast(message, settingKey) {
 
   const db = getDB();
@@ -116,6 +121,7 @@ async function broadcast(message, settingKey) {
 /* =====================================================
    START SCHEDULER
 ===================================================== */
+
 function startGeneralScheduler() {
 
   console.log("⏰ General Scheduler Started");
@@ -144,6 +150,16 @@ function startGeneralScheduler() {
   cron.schedule("0 15 * * 6", async () => {
     await broadcast(buildSaturday15(), "sat15");
   }, { timezone: "Asia/Bangkok" });
+
+  // 🔥 8 โมงเช้า (อาทิตย์/จันทร์/อังคาร/ศุกร์)
+  cron.schedule("0 8 * * 0,1,2,5", async () => {
+    await broadcast(buildMorningStats(), "stats8");
+  }, { timezone: "Asia/Bangkok" });
+
+    cron.schedule("0 7 * * *", async () => {
+      await handleReminders();
+    }, { timezone: "Asia/Bangkok" });
+
 }
 
 module.exports = { startGeneralScheduler };

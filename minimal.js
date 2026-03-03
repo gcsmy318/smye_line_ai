@@ -7,7 +7,6 @@ const { middleware } = require("@line/bot-sdk");
 
 const { initFirebase } = require("./config/firebase");
 const { handleMessage } = require("./services/groupService");
-const { startScheduler } = require("./services/schedulers/masterScheduler");
 const { startGeneralScheduler } = require("./services/schedulers/generalScheduler");
 
 const app = express();
@@ -25,10 +24,6 @@ console.log("✅ Firebase initialized");
 /* 🔥 2️⃣ Start General Scheduler */
 startGeneralScheduler();
 console.log("⏰ General Scheduler started");
-
-/* 🔥 3️⃣ Start Master Scheduler */
-startScheduler();
-console.log("⏰ Master Scheduler started");
 
 /* =====================================================
    📂 STATIC FILES

@@ -1,8 +1,6 @@
 const { getDB } = require("../config/firebase");
 const { client } = require("../config/line");
 
-const province = require("./modules/provinceModule");
-const hatyai = require("./modules/hatyaiModule");
 const reminder = require("./modules/reminderModule");
 const note = require("./modules/permanentNoteModule");
 const report = require("./modules/serviceReportModule");
@@ -14,8 +12,6 @@ const general = require("./modules/generalModule");
 const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
 
 const DEFAULT_MODULES = {
-  province: false,
-  hatyai: false,
   reminder: false,
   permanentNote: false,
   serviceReport: false,
@@ -24,12 +20,9 @@ const DEFAULT_MODULES = {
 };
 
 /* ===================================================== */
-/* 🔥 PUSH + LOG (console อย่างเดียว) */
-/* ===================================================== */
 
 async function safeReply(message) {
   try {
-
     if (!message) return;
 
     await client.pushMessage(TARGET_GROUP, {
@@ -37,16 +30,11 @@ async function safeReply(message) {
       text: message
     });
 
-    console.log("📤 Sent to:", TARGET_GROUP);
-    console.log("📝 Message:", message);
-
   } catch (err) {
     console.error("Push Error:", err.message);
   }
 }
 
-/* ===================================================== */
-/* ENTRY POINT */
 /* ===================================================== */
 
 async function handleMessage(event) {
@@ -67,7 +55,7 @@ async function handleMessage(event) {
        HELP
     ================================ */
 
-    const helpMatch = normalized.match(/^help\s*([1-8])$/);
+    const helpMatch = normalized.match(/^help\s*([3-8])$/);
     if (helpMatch) {
       return safeReply(buildModuleDetail(helpMatch[1]));
     }
@@ -108,11 +96,9 @@ async function handleMessage(event) {
     }
 
     /* ===============================
-       ROUTER MODULE (เหมือนเดิม)
+       ROUTER
     ================================ */
 
-    try { if (modules.province && await province.handle(event, group)) return; } catch(e){ console.error(e); }
-    try { if (modules.hatyai && await hatyai.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.reminder && await reminder.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.permanentNote && await note.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.serviceReport && await report.handle(event, group)) return; } catch(e){ console.error(e); }
@@ -125,14 +111,10 @@ async function handleMessage(event) {
 }
 
 /* ===================================================== */
-/* HANDLE SET */
-/* ===================================================== */
 
 async function handleSetCommand(text, docRef) {
 
   const setMap = {
-    "เซ็ต1": "province",
-    "เซ็ต2": "hatyai",
     "เซ็ต3": "reminder",
     "เซ็ต4": "permanentNote",
     "เซ็ต5": "serviceReport",
@@ -164,93 +146,109 @@ async function handleSetCommand(text, docRef) {
 }
 
 /* ===================================================== */
-/* MENU */
-/* ===================================================== */
 
 function buildMainMenu() {
   return `
 🤖 Spirit AI เมนูหลัก
 
-Smile เซ็ต1 - เซ็ต8 เปิดระบบ
-help 1 - help 8 ดูรายละเอียด
+📌 การเปิดระบบ:
+Smile เซ็ต3  → เปิดระบบแจ้งเตือน
+Smile เซ็ต4  → เปิดระบบบันทึกถาวร
+Smile เซ็ต5  → เปิดระบบรายงานการรับใช้
+Smile เซ็ต6  → เปิดระบบทะเบียนสมาชิก
+Smile เซ็ต7  → เปิดระบบแจ้งเตือนทั่วไป
+Smile เซ็ต8  → ดูสถานะระบบ
+
+📖 ดูวิธีใช้งาน:
+help 3 - help 8
 `;
 }
 
-/* ===================================================== */
-/* HELP DETAIL */
 /* ===================================================== */
 
 function buildModuleDetail(number) {
 
   switch (number) {
 
-    case "1":
-      return `📊 ระบบรายงานจังหวัด
-คำสั่ง:
-สงขลา ส่งสถิติแล้ว
-สตูล ส่งสถิติแล้ว`;
-
-    case "2":
-      return `📊 ระบบสถิติหาดใหญ่
-คำสั่ง:
-หาดใหญ่ 120 คน
-เด็ก 30 คน`;
-
     case "3":
       return `
 ⏰ ระบบแจ้งเตือนล่วงหน้า
 
-พิมพ์:
+📌 วิธีเปิด:
+Smile เซ็ต3
+
+📌 ตัวอย่างคำสั่ง:
 แจ้งเตือน ประชุมทีม 25/3/2026
-
-รองรับรูปแบบวันที่:
-1/3/2026
-01/03/2026
-1/3/2569
-
-คำสั่ง:
 ดูแจ้งเตือน
-ดูแจ้งเตือนที่ผ่านไปแล้ว
 ลบแจ้งเตือน <ID>
 `;
 
     case "4":
-      return `📝 ระบบบันทึกถาวร
-คำสั่ง:
+      return `
+📝 ระบบบันทึกถาวร
+
+📌 วิธีเปิด:
+Smile เซ็ต4
+
+📌 ตัวอย่างคำสั่ง:
 บันทึก วันนี้ประชุม 18.00
-ดูบันทึก`;
+ดูบันทึก
+`;
 
     case "5":
-      return `📘 ระบบรายงานการรับใช้
-คำสั่ง:
+      return `
+📘 ระบบรายงานการรับใช้
+
+📌 วิธีเปิด:
+Smile เซ็ต5
+
+📌 ตัวอย่างคำสั่ง:
 รายงานการรับใช้ แจกถุงยังชีพ 20 ชุด
-สรุปรายสัปดาห์`;
+สรุปรายสัปดาห์
+`;
 
     case "6":
-      return `👤 ระบบทะเบียนสมาชิก
-คำสั่ง:
-ลงทะเบียน สมชาย ใจดี`;
+      return `
+👤 ระบบทะเบียนสมาชิก
+
+📌 วิธีเปิด:
+Smile เซ็ต6
+
+📌 ตัวอย่างคำสั่ง:
+ลงทะเบียน สมชาย ใจดี ...
+คนเกิดเดือน 3
+`;
 
     case "7":
-      return `📢 ระบบแจ้งเตือนทั่วไป
+      return `
+📢 ระบบแจ้งเตือนทั่วไป
 
-คำสั่ง:
+📌 วิธีเปิด:
+Smile เซ็ต7
+
+📌 เปิด/ปิดตาราง:
+เปิด ศุกร์12
+ปิด ศุกร์12
+เปิด สถิติ8
+ปิด สถิติ8
+
+📌 ดูตาราง:
 ดูตาราง
-เปิด fri12
-ปิด fri12`;
+`;
 
     case "8":
-      return `📊 ดูสถานะระบบ
+      return `
+📊 ดูสถานะระบบ
+
 คำสั่ง:
-Smile เซ็ต8`;
+Smile เซ็ต8
+`;
 
     default:
       return "ไม่พบระบบนี้";
   }
 }
 
-/* ===================================================== */
-/* STATUS */
 /* ===================================================== */
 
 function buildStatus(group) {
