@@ -1,6 +1,8 @@
 const { getDB } = require("../config/firebase");
 const { client } = require("../config/line");
 
+const province = require("./modules/provinceModule");
+const hatyai = require("./modules/hatyaiModule");
 const reminder = require("./modules/reminderModule");
 const note = require("./modules/permanentNoteModule");
 const report = require("./modules/serviceReportModule");
@@ -22,13 +24,7 @@ const DEFAULT_MODULES = {
 };
 
 /* ===================================================== */
-/* 🔒 MASTER LOCK (กันเรียกซ้ำ) */
-/* ===================================================== */
-
-let masterRecallLock = false;
-
-/* ===================================================== */
-/* 🔥 PUSH + LOG */
+/* 🔥 PUSH + LOG (console อย่างเดียว) */
 /* ===================================================== */
 
 async function safeReply(message) {
@@ -46,48 +42,6 @@ async function safeReply(message) {
 
   } catch (err) {
     console.error("Push Error:", err.message);
-  }
-}
-
-/* ===================================================== */
-/* 🔥 MASTER RECALL */
-/* ===================================================== */
-
-async function runMasterRecall() {
-
-  if (masterRecallLock) {
-    console.log("⚠️ Master Recall skipped (already running)");
-    return false;
-  }
-
-  masterRecallLock = true;
-
-  try {
-
-    console.log("🚀 Master Recall Started");
-
-    if (typeof reminder.runMissedReminderAllGroups === "function") {
-      await reminder.runMissedReminderAllGroups();
-    }
-
-    if (typeof general.runMissedGeneralAllGroups === "function") {
-      await general.runMissedGeneralAllGroups();
-    }
-
-    console.log("✅ Master Recall Completed");
-
-    return true;
-
-  } catch (err) {
-    console.error("Master Recall Error:", err);
-    return false;
-  }
-
-  finally {
-    setTimeout(() => {
-      masterRecallLock = false;
-      console.log("🔓 Master Recall Unlock");
-    }, 60000); // กันยิงซ้ำ 1 นาที
   }
 }
 
@@ -110,38 +64,12 @@ async function handleMessage(event) {
     const normalized = text.toLowerCase();
 
     /* ===============================
-       🔥 เรียกแจ้งเตือน Master
-    ================================ */
-
-    if (
-      groupId === TARGET_GROUP &&
-      normalized === "เรียกแจ้งเตือน"
-    ) {
-      try {
-
-        const success = await runMasterRecall();
-
-        if (success) {
-          return safeReply(
-            "✅ เรียกแจ้งเตือนครบ (วันนี้ + ย้อนหลัง + ล่วงหน้า 3 วัน) ทุกกลุ่มเรียบร้อยแล้ว"
-          );
-        }
-
-        return safeReply("⚠️ ระบบกำลังทำงานอยู่ กรุณารอสักครู่");
-
-      } catch (err) {
-        console.error(err);
-        return safeReply("❌ เกิดข้อผิดพลาดในการเรียก Master Recall");
-      }
-    }
-
-    /* ===============================
        HELP
     ================================ */
 
     const helpMatch = normalized.match(/^help\s*([1-8])$/);
     if (helpMatch) {
-      return safeReply(buildModuleDetail(helpMatch[1], groupId));
+      return safeReply(buildModuleDetail(helpMatch[1]));
     }
 
     if (isHelpCommand(normalized)) {
@@ -183,6 +111,8 @@ async function handleMessage(event) {
        ROUTER MODULE (เหมือนเดิม)
     ================================ */
 
+    try { if (modules.province && await province.handle(event, group)) return; } catch(e){ console.error(e); }
+    try { if (modules.hatyai && await hatyai.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.reminder && await reminder.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.permanentNote && await note.handle(event, group)) return; } catch(e){ console.error(e); }
     try { if (modules.serviceReport && await report.handle(event, group)) return; } catch(e){ console.error(e); }
@@ -201,6 +131,8 @@ async function handleMessage(event) {
 async function handleSetCommand(text, docRef) {
 
   const setMap = {
+    "เซ็ต1": "province",
+    "เซ็ต2": "hatyai",
     "เซ็ต3": "reminder",
     "เซ็ต4": "permanentNote",
     "เซ็ต5": "serviceReport",
@@ -242,6 +174,79 @@ function buildMainMenu() {
 Smile เซ็ต1 - เซ็ต8 เปิดระบบ
 help 1 - help 8 ดูรายละเอียด
 `;
+}
+
+/* ===================================================== */
+/* HELP DETAIL */
+/* ===================================================== */
+
+function buildModuleDetail(number) {
+
+  switch (number) {
+
+    case "1":
+      return `📊 ระบบรายงานจังหวัด
+คำสั่ง:
+สงขลา ส่งสถิติแล้ว
+สตูล ส่งสถิติแล้ว`;
+
+    case "2":
+      return `📊 ระบบสถิติหาดใหญ่
+คำสั่ง:
+หาดใหญ่ 120 คน
+เด็ก 30 คน`;
+
+    case "3":
+      return `
+⏰ ระบบแจ้งเตือนล่วงหน้า
+
+พิมพ์:
+แจ้งเตือน ประชุมทีม 25/3/2026
+
+รองรับรูปแบบวันที่:
+1/3/2026
+01/03/2026
+1/3/2569
+
+คำสั่ง:
+ดูแจ้งเตือน
+ดูแจ้งเตือนที่ผ่านไปแล้ว
+ลบแจ้งเตือน <ID>
+`;
+
+    case "4":
+      return `📝 ระบบบันทึกถาวร
+คำสั่ง:
+บันทึก วันนี้ประชุม 18.00
+ดูบันทึก`;
+
+    case "5":
+      return `📘 ระบบรายงานการรับใช้
+คำสั่ง:
+รายงานการรับใช้ แจกถุงยังชีพ 20 ชุด
+สรุปรายสัปดาห์`;
+
+    case "6":
+      return `👤 ระบบทะเบียนสมาชิก
+คำสั่ง:
+ลงทะเบียน สมชาย ใจดี`;
+
+    case "7":
+      return `📢 ระบบแจ้งเตือนทั่วไป
+
+คำสั่ง:
+ดูตาราง
+เปิด fri12
+ปิด fri12`;
+
+    case "8":
+      return `📊 ดูสถานะระบบ
+คำสั่ง:
+Smile เซ็ต8`;
+
+    default:
+      return "ไม่พบระบบนี้";
+  }
 }
 
 /* ===================================================== */

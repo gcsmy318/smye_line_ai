@@ -93,72 +93,45 @@ async function handleReminders() {
   }
 }
 
-/* ===================================================== */
-/* 🔥 MASTER ยิงย้อนหลังทุกกลุ่ม */
-/* ===================================================== */
+/* ================= PROVINCE ================= */
 
-async function runMissedReminderAllGroups() {
+async function handleProvinceReminder() {
 
   try {
 
     const db = getDB();
-    const groups = await db.collection("groups").get();
+    if (!db) return;
 
-    const nowThai = getThaiNow();
-    const todayOnly = toThaiDateOnly(nowThai);
+    const today = getThaiNow();
+    if (!isReportDay(today)) return;
+
+    const todayStr = today.toISOString().split("T")[0];
+
+    const doc = await db
+      .collection("weeklyProvinceStats")
+      .doc(todayStr)
+      .get();
+
+    if (doc.exists) return;
+
+    const groups = await db.collection("groups").get();
 
     for (const g of groups.docs) {
 
-      const snapshot = await db
-        .collection("reminders")
-        .where("groupId", "==", g.id)
-        .get();
+      const data = g.data();
 
-      const messages = [];
-
-      snapshot.forEach(doc => {
-
-        const data = doc.data();
-
-        const rawDate =
-          data.targetDate ||
-          data.eventDate ||
-          data.date;
-
-        if (!rawDate) return;
-
-        const eventDate = rawDate.toDate
-          ? rawDate.toDate()
-          : new Date(rawDate);
-
-        const eventOnly = toThaiDateOnly(eventDate);
-
-        const diffDays = Math.round(
-          (eventOnly - todayOnly) / (1000 * 60 * 60 * 24)
-        );
-
-        if (diffDays <= 0)
-          messages.push(`📌 (ย้อนหลัง) ${data.title}`);
-      });
-
-      if (!messages.length) continue;
-
-      let msg = "🔔 แจ้งเตือนย้อนหลัง\n\n";
-
-      messages.forEach((m, i) => {
-        msg += `${i + 1}. ${m}\n`;
-      });
+      if (!data.modules?.province) continue;
 
       await client.pushMessage(g.id, {
         type: "text",
-        text: msg
+        text: "📢 รบกวนผู้นำทุกท่านส่งสถิติด้วยนะครับ ขอบคุณครับ"
       });
 
-      console.log("📤 Missed Reminder sent:", g.id);
+      console.log("📤 Province reminder sent:", g.id);
     }
 
   } catch (err) {
-    console.error("Missed Reminder Error:", err);
+    console.error("Province Reminder Error:", err);
   }
 }
 
@@ -183,7 +156,4 @@ function startScheduler() {
   }, 5000);
 }
 
-module.exports = {
-  startScheduler,
-  runMissedReminderAllGroups
-};
+module.exports = { startScheduler };
