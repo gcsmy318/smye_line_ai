@@ -6,6 +6,7 @@ async function handle(event) {
 
   const text = event.message.text.trim();
   const groupId = event.source.groupId || event.source.userId;
+  const messageId = event.message.id; // 🔥 ใช้กันซ้ำ
   const db = getDB();
 
   /* ===============================
@@ -18,6 +19,22 @@ async function handle(event) {
     if (!content) {
       return reply(event.replyToken, "กรุณาพิมพ์: บันทึก ข้อความ");
     }
+
+    // 🔥 ตรวจว่าซ้ำไหม
+    const duplicateCheck = await db
+      .collection("noteMessageIds")
+      .doc(messageId)
+      .get();
+
+    if (duplicateCheck.exists) {
+      console.log("⚠ duplicate message ignored:", messageId);
+      return true; // ไม่ทำอะไร
+    }
+
+    // 🔥 บันทึก messageId ไว้กันซ้ำ
+    await db.collection("noteMessageIds").doc(messageId).set({
+      createdAt: new Date()
+    });
 
     const id = uuidv4().slice(0, 5);
 

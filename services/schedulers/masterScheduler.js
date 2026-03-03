@@ -28,6 +28,14 @@ async function handleReminders() {
     if (!db) return;
 
     const nowThai = getThaiNow();
+
+    // ✅ ตัดเวลาออก เหลือแค่วัน
+    const todayOnly = new Date(
+      nowThai.getFullYear(),
+      nowThai.getMonth(),
+      nowThai.getDate()
+    );
+
     const snapshot = await db.collection("reminders").get();
 
     const groupMap = {};
@@ -48,8 +56,15 @@ async function handleReminders() {
         ? rawDate.toDate()
         : new Date(rawDate);
 
-      const diffDays = Math.ceil(
-        (eventDate - nowThai) / (1000 * 60 * 60 * 24)
+      // ✅ ตัดเวลาออกจาก event ด้วย
+      const eventOnly = new Date(
+        eventDate.getFullYear(),
+        eventDate.getMonth(),
+        eventDate.getDate()
+      );
+
+      const diffDays = Math.round(
+        (eventOnly - todayOnly) / (1000 * 60 * 60 * 24)
       );
 
       if (!groupMap[data.groupId]) {
@@ -115,7 +130,7 @@ async function handleProvinceReminder() {
 
       if (!data.modules?.province) continue;
 
-     await client.pushMessage(g.id, {
+      await client.pushMessage(g.id, {
         type: "text",
         text: "📢 รบกวนผู้นำทุกท่านส่งสถิติด้วยนะครับ ขอบคุณครับ"
       });

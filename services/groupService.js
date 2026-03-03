@@ -64,12 +64,33 @@ async function handleMessage(event) {
     const normalized = text.toLowerCase();
 
     /* ===============================
+       🔥 เรียกแจ้งเตือนที่อาจพลาด (เฉพาะกลุ่มนี้เท่านั้น)
+    ================================ */
+
+    if (
+      groupId === TARGET_GROUP &&
+      normalized === "เรียกแจ้งเตือน"
+    ) {
+      try {
+        if (typeof reminder.runMissedReminder === "function") {
+          await reminder.runMissedReminder(groupId);
+          return safeReply("✅ ระบบตรวจสอบแจ้งเตือนที่อาจพลาดไปแล้ว");
+        } else {
+          return safeReply("⚠️ ระบบยังไม่รองรับฟังก์ชัน runMissedReminder");
+        }
+      } catch (err) {
+        console.error(err);
+        return safeReply("❌ เกิดข้อผิดพลาดในการเรียกแจ้งเตือน");
+      }
+    }
+
+    /* ===============================
        HELP
     ================================ */
 
     const helpMatch = normalized.match(/^help\s*([1-8])$/);
     if (helpMatch) {
-      return safeReply(buildModuleDetail(helpMatch[1]));
+      return safeReply(buildModuleDetail(helpMatch[1], groupId));
     }
 
     if (isHelpCommand(normalized)) {
@@ -131,8 +152,6 @@ async function handleMessage(event) {
 async function handleSetCommand(text, docRef) {
 
   const setMap = {
-    "เซ็ต1": "province",
-    "เซ็ต2": "hatyai",
     "เซ็ต3": "reminder",
     "เซ็ต4": "permanentNote",
     "เซ็ต5": "serviceReport",
@@ -180,23 +199,41 @@ help 1 - help 8 ดูรายละเอียด
 /* HELP DETAIL */
 /* ===================================================== */
 
-function buildModuleDetail(number) {
+function buildModuleDetail(number, groupId) {
 
   switch (number) {
 
-    case "1":
-      return `📊 ระบบรายงานจังหวัด
-คำสั่ง:
-สงขลา ส่งสถิติแล้ว
-สตูล ส่งสถิติแล้ว`;
-
-    case "2":
-      return `📊 ระบบสถิติหาดใหญ่
-คำสั่ง:
-หาดใหญ่ 120 คน
-เด็ก 30 คน`;
-
     case "3":
+
+      if (groupId === TARGET_GROUP) {
+        return `
+⏰ ระบบแจ้งเตือนล่วงหน้า
+
+พิมพ์:
+แจ้งเตือน ประชุมทีม 25/3/2026
+
+รองรับรูปแบบวันที่:
+1/3/2026
+01/03/2026
+1/3/2569
+
+คำสั่ง:
+ดูแจ้งเตือน
+ดูแจ้งเตือนที่ผ่านไปแล้ว
+ลบแจ้งเตือน <ID>
+
+🔥 คำสั่งพิเศษ (เฉพาะกลุ่มนี้):
+พิมพ์:
+เรียกแจ้งเตือน
+
+ใช้สำหรับให้ระบบตรวจสอบแจ้งเตือนที่อาจพลาดไปทันที
+กรณี cron ไม่ทำงานหรือ server รีสตาร์ท
+
+เอกสาร:
+https://your-domain.com/docs/reminder
+`;
+      }
+
       return `
 ⏰ ระบบแจ้งเตือนล่วงหน้า
 

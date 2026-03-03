@@ -1,261 +1,189 @@
+const cron = require("node-cron");
 const { getDB } = require("../../config/firebase");
-const { reply } = require("../../config/line");
+const { client } = require("../../config/line");
 
-/* =========================================
-   MAIN HANDLE
-========================================= */
-async function handle(event) {
+/* ================= TIME ================= */
 
-  const text = event.message.text.trim();
-  const normalized = text.toLowerCase();
-  const groupId = event.source.groupId || event.source.userId;
-
-  if (normalized.startsWith("แจ้งเตือน ")) {
-    return createReminder(event, groupId);
-  }
-
-  if (
-    normalized === "แจ้งเตือนทั้งหมด" ||
-    normalized === "ดูแจ้งเตือน"
-  ) {
-    return listReminders(event, groupId);
-  }
-
-  if (normalized === "ดูแจ้งเตือนที่ผ่านไปแล้ว") {
-    return listPastReminders(event, groupId);
-  }
-
-  if (normalized.startsWith("ลบแจ้งเตือน ")) {
-    return deleteReminder(event, groupId);
-  }
-
-  return false;
-}
-
-/* =========================================
-   CREATE REMINDER
-========================================= */
-async function createReminder(event, groupId) {
-
-  const db = getDB();
-  const eventId = event.message.id;
-
-  // 🔒 กัน duplicate event จาก LINE
-  const exist = await db.collection("processedEvents")
-    .doc(eventId)
-    .get();
-
-  if (exist.exists) {
-    console.log("Duplicate blocked:", eventId);
-    return;
-  }
-
-  const text = event.message.text.trim();
-  const parts = text.replace("แจ้งเตือน", "").trim().split(" ");
-
-  if (parts.length < 2) {
-    return reply(event.replyToken, "รูปแบบ: แจ้งเตือน เรื่อง dd/mm/yyyy");
-  }
-
-  const dateStr = parts.pop();
-  const title = parts.join(" ");
-
-  const parsedDate = parseDate(dateStr);
-
-  if (!parsedDate) {
-    return reply(event.replyToken, "รูปแบบวันที่ไม่ถูกต้อง");
-  }
-
-  // 🔢 สร้าง ID 5 หลัก
-  const id = await generateShortId(db);
-
-  await db.collection("reminders").doc(id).set({
-    groupId,
-    title,
-    originalDate: dateStr,
-    targetDate: parsedDate,
-    createdAt: new Date()
-  });
-
-  await db.collection("processedEvents").doc(eventId).set({
-    createdAt: new Date()
-  });
-
-  console.log("Reminder created:", id, title);
-
-  // ✅ แสดงแค่รายการเดียว
-  return reply(
-    event.replyToken,
-    `✅ บันทึกแจ้งเตือนแล้ว\nID ${id} - ${title}`
+function getThaiNow() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
   );
 }
 
-/* =========================================
-   LIST REMINDERS
-========================================= */
-async function listReminders(event, groupId) {
-
-  const db = getDB();
-
-  const snapshot = await db.collection("reminders")
-    .where("groupId", "==", groupId)
-    .get();
-
-  if (snapshot.empty) {
-    return reply(event.replyToken, "ยังไม่มีรายการแจ้งเตือน");
-  }
-
-  let msg = "📌 แจ้งเตือน\n";
-  msg += "----------------------------------\n";
-
-  snapshot.forEach(doc => {
-
-    const data = doc.data();
-
-    const dateText =
-      data.originalDate ||
-      (data.targetDate
-        ? formatDate(data.targetDate.toDate
-          ? data.targetDate.toDate()
-          : new Date(data.targetDate))
-        : "-");
-
-    msg += `- ID ${doc.id} ${data.title} วันที่ ${dateText}\n`;
-  });
-
-  msg += "----------------------------------\n";
-  msg += "ลบโดยพิมพ์: ลบแจ้งเตือน <ID>";
-
-  return reply(event.replyToken, msg);
+function toThaiDateOnly(date) {
+  const d = new Date(
+    new Date(date).toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+  );
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-/* =========================================
-   LIST PAST REMINDERS
-========================================= */
-async function listPastReminders(event, groupId) {
-
-  const db = getDB();
-  const now = new Date();
-
-  const snapshot = await db.collection("reminders")
-    .where("groupId", "==", groupId)
-    .get();
-
-  if (snapshot.empty) {
-    return reply(event.replyToken, "ยังไม่มีรายการแจ้งเตือน");
-  }
-
-  let msg = "📜 แจ้งเตือนที่ผ่านมา\n";
-  msg += "----------------------------------\n";
-
-  let found = false;
-
-  snapshot.forEach(doc => {
-
-    const data = doc.data();
-    if (!data.targetDate) return;
-
-    const target = data.targetDate.toDate
-      ? data.targetDate.toDate()
-      : new Date(data.targetDate);
-
-    if (target < now) {
-      found = true;
-      msg += `- ID ${doc.id} ${data.title} (${data.originalDate || "-"})\n`;
-    }
-  });
-
-  if (!found) {
-    msg += "ไม่มีรายการที่ผ่านมา";
-  }
-
-  return reply(event.replyToken, msg);
+function isReportDay(date) {
+  return [0, 1, 2, 5].includes(date.getDay());
 }
 
-/* =========================================
-   DELETE REMINDER
-========================================= */
-async function deleteReminder(event, groupId) {
+/* ================= REMINDER ================= */
 
-  const text = event.message.text.trim();
-  const id = text.replace("ลบแจ้งเตือน", "").trim();
-  const db = getDB();
+async function handleReminders() {
 
-  if (!id) {
-    return reply(event.replyToken, "กรุณาระบุ ID");
-  }
+  try {
 
-  const docRef = db.collection("reminders").doc(id);
-  const doc = await docRef.get();
+    const db = getDB();
+    if (!db) return;
 
-  if (!doc.exists) {
-    return reply(event.replyToken, "ไม่พบ ID นี้");
-  }
+    const nowThai = getThaiNow();
+    const todayOnly = toThaiDateOnly(nowThai);
 
-  if (doc.data().groupId !== groupId) {
-    return reply(event.replyToken, "ไม่สามารถลบของกลุ่มอื่นได้");
-  }
+    const snapshot = await db.collection("reminders").get();
 
-  await docRef.delete();
+    const groupMap = {};
 
-  console.log("Reminder deleted:", id);
+    snapshot.forEach(doc => {
 
-  return reply(event.replyToken, `ลบแจ้งเตือน ID ${id} แล้ว`);
-}
+      const data = doc.data();
+      if (!data.groupId) return;
 
-/* =========================================
-   GENERATE 5-CHAR ID
-========================================= */
-async function generateShortId(db) {
+      const rawDate =
+        data.targetDate ||
+        data.eventDate ||
+        data.date;
 
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      if (!rawDate) return;
 
-  while (true) {
+      const eventDate = rawDate.toDate
+        ? rawDate.toDate()
+        : new Date(rawDate);
 
-    let id = "";
+      const eventOnly = toThaiDateOnly(eventDate);
 
-    for (let i = 0; i < 5; i++) {
-      id += chars.charAt(Math.floor(Math.random() * chars.length));
+      const diffDays = Math.round(
+        (eventOnly - todayOnly) / (1000 * 60 * 60 * 24)
+      );
+
+      if (!groupMap[data.groupId]) {
+        groupMap[data.groupId] = [];
+      }
+
+      if (diffDays === 0)
+        groupMap[data.groupId].push(`📌 วันนี้: ${data.title}`);
+
+      if (diffDays === 3)
+        groupMap[data.groupId].push(`⏳ อีก 3 วัน: ${data.title}`);
+    });
+
+    for (const groupId in groupMap) {
+
+      if (!groupMap[groupId].length) continue;
+
+      let msg = "🔔 แจ้งเตือนประจำวัน\n\n";
+
+      groupMap[groupId].forEach((m, i) => {
+        msg += `${i + 1}. ${m}\n`;
+      });
+
+      await client.pushMessage(groupId, {
+        type: "text",
+        text: msg
+      });
+
+      console.log("📤 Reminder sent:", groupId);
     }
 
-    const exist = await db.collection("reminders").doc(id).get();
+  } catch (err) {
+    console.error("Reminder Error:", err);
+  }
+}
 
-    if (!exist.exists) {
-      return id;
+/* ===================================================== */
+/* 🔥 MASTER ยิงย้อนหลังทุกกลุ่ม */
+/* ===================================================== */
+
+async function runMissedReminderAllGroups() {
+
+  try {
+
+    const db = getDB();
+    const groups = await db.collection("groups").get();
+
+    const nowThai = getThaiNow();
+    const todayOnly = toThaiDateOnly(nowThai);
+
+    for (const g of groups.docs) {
+
+      const snapshot = await db
+        .collection("reminders")
+        .where("groupId", "==", g.id)
+        .get();
+
+      const messages = [];
+
+      snapshot.forEach(doc => {
+
+        const data = doc.data();
+
+        const rawDate =
+          data.targetDate ||
+          data.eventDate ||
+          data.date;
+
+        if (!rawDate) return;
+
+        const eventDate = rawDate.toDate
+          ? rawDate.toDate()
+          : new Date(rawDate);
+
+        const eventOnly = toThaiDateOnly(eventDate);
+
+        const diffDays = Math.round(
+          (eventOnly - todayOnly) / (1000 * 60 * 60 * 24)
+        );
+
+        if (diffDays <= 0)
+          messages.push(`📌 (ย้อนหลัง) ${data.title}`);
+      });
+
+      if (!messages.length) continue;
+
+      let msg = "🔔 แจ้งเตือนย้อนหลัง\n\n";
+
+      messages.forEach((m, i) => {
+        msg += `${i + 1}. ${m}\n`;
+      });
+
+      await client.pushMessage(g.id, {
+        type: "text",
+        text: msg
+      });
+
+      console.log("📤 Missed Reminder sent:", g.id);
     }
+
+  } catch (err) {
+    console.error("Missed Reminder Error:", err);
   }
 }
 
-/* =========================================
-   PARSE DATE (รองรับหลาย format)
-========================================= */
-function parseDate(dateStr) {
+/* ================= START ================= */
 
-  if (!dateStr) return null;
+function startScheduler() {
 
-  const clean = dateStr.trim();
+  console.log("⏰ Master Scheduler Started");
 
-  const match = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!match) return null;
+  cron.schedule("0 7 * * *", async () => {
+    console.log("🔔 7AM Reminder");
+    await handleReminders();
+  }, { timezone: "Asia/Bangkok" });
 
-  let day = parseInt(match[1], 10);
-  let month = parseInt(match[2], 10) - 1;
-  let year = parseInt(match[3], 10);
+  cron.schedule("0 8 * * 0,1,2,5", async () => {
+    console.log("📢 8AM Province");
+    await handleProvinceReminder();
+  }, { timezone: "Asia/Bangkok" });
 
-  // รองรับ พ.ศ.
-  if (year > 2400) {
-    year -= 543;
-  }
-
-  const date = new Date(year, month, day, 7, 0, 0);
-
-  if (isNaN(date.getTime())) return null;
-
-  return date;
+  setTimeout(async () => {
+    console.log("🚀 Startup Check");
+  }, 5000);
 }
 
-function formatDate(d) {
-  return d.toLocaleDateString("th-TH");
-}
-
-module.exports = { handle };
+module.exports = {
+  startScheduler,
+  runMissedReminderAllGroups
+};

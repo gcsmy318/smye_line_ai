@@ -25,22 +25,17 @@ function formatThaiDate(date) {
    TEMPLATE ข้อความ
 ===================================================== */
 function buildFriday12() {
-  return `🔔 แจ้งเตือนวันนี้
-
-ซ้อมนมัสการ 16.30 นะครับ`;
+  return `🔔 แจ้งเตือนวันนี้ ซ้อมนมัสการ 16.30 นะครับ`;
 }
 
 function buildSunday9() {
   return `🔔 แจ้งเตือนเช้าวันอาทิตย์
-
 hope channel มีไหมครับ ???
-เพลงตอบสนอง เพลงอะไร ???`;
+เพลงตอบสนอง เพลงอะไรครับ ???`;
 }
 
 function buildSunday1130() {
-  return `🎵 เตรียมก่อนเทศนา
-
-เพลงตอบสนอง เพลงอะไร ???`;
+  return `🎵 เตรียมก่อนเทศนา เพลงตอบสนอง เพลงอะไรครับ ???`;
 }
 
 function buildMondayProgram() {
@@ -85,27 +80,9 @@ BS :
 **********************`;
 }
 
-function buildMeeting() {
-  return `----------------------------------
-พรุ่งนี้วันเสาร์ขออนุญาตนัดหมายประชุม
-เวลา 10.00-12:00 น. ครับ
-
-ลงชื่อประชุม
-1.
-2.
-3.
-
-ลาประชุม (ส่งรายงานในกลุ่ม)
-1.
-2.
-3.
-----------------------------------`;
-}
 
 function buildSaturday15() {
-  return `📣 แจ้งเตือน
-
-ชั้นสร้าง เจอกัน 18.00 น.`;
+  return `📣 แจ้งเตือน ชั้นสร้าง เจอกัน 18.00 น.`;
 }
 
 /* =====================================================
@@ -161,11 +138,6 @@ function startGeneralScheduler() {
   // จันทร์ 12:00
   cron.schedule("0 12 * * 1", async () => {
     await broadcast(buildMondayProgram(), "mon12");
-  }, { timezone: "Asia/Bangkok" });
-
-  // ศุกร์ และ เสาร์ 08:00
-  cron.schedule("0 8 * * 5,6", async () => {
-    await broadcast(buildMeeting(), "fri8");
   }, { timezone: "Asia/Bangkok" });
 
   // เสาร์ 15:00
