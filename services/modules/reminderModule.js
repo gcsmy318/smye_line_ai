@@ -1,5 +1,7 @@
 const { getDB } = require("../../config/firebase");
+const { reply } = require("../../config/line");
 const { client } = require("../../config/line");
+const { v4: uuidv4 } = require("uuid");
 
 /* ================= TIME ================= */
 
@@ -16,7 +18,98 @@ function toThaiDateOnly(date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-/* ================= REMINDER ================= */
+/* ================= CHAT COMMAND ================= */
+
+async function handle(event) {
+
+  if (!event.message || event.message.type !== "text") return false;
+
+  const text = event.message.text.trim();
+  const groupId = event.source.groupId || event.source.userId;
+  const db = getDB();
+
+  /* ===============================
+     เพิ่มแจ้งเตือน
+     รูปแบบ:
+     แจ้งเตือน ประชุมทีม 25/3/2026
+  ================================ */
+  if (text.startsWith("แจ้งเตือน ")) {
+
+    const raw = text.replace("แจ้งเตือน", "").trim();
+    const parts = raw.split(" ");
+
+    if (parts.length < 2) {
+      return reply(event.replyToken, "รูปแบบ: แจ้งเตือน หัวข้อ 25/3/2026");
+    }
+
+    const dateStr = parts.pop();
+    const title = parts.join(" ");
+
+    const id = uuidv4().slice(0, 5);
+
+    await db.collection("reminders").doc(id).set({
+      id,
+      groupId,
+      title,
+      date: dateStr,
+      createdAt: new Date()
+    });
+
+    return reply(event.replyToken, `✅ บันทึกแจ้งเตือนแล้ว (ID: ${id})`);
+  }
+
+  /* ===============================
+     ดูแจ้งเตือน
+  ================================ */
+  if (text === "ดูแจ้งเตือน") {
+
+    const snapshot = await db.collection("reminders")
+      .where("groupId", "==", groupId)
+      .get();
+
+    if (snapshot.empty) {
+      return reply(event.replyToken, "ยังไม่มีแจ้งเตือน");
+    }
+
+    let msg = "📋 รายการแจ้งเตือน\n\n";
+
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      msg += `• ${d.title} (${d.date})\n   ID: ${d.id}\n`;
+    });
+
+    return reply(event.replyToken, msg);
+  }
+
+  /* ===============================
+     ลบแจ้งเตือน
+     รูปแบบ:
+     ลบแจ้งเตือน abc12
+  ================================ */
+  if (text.startsWith("ลบแจ้งเตือน ")) {
+
+    const id = text.replace("ลบแจ้งเตือน", "").trim();
+
+    if (!id || id.length !== 5) {
+      return reply(event.replyToken, "กรุณาระบุ ID 5 ตัว เช่น ลบแจ้งเตือน a1b2c");
+    }
+
+    const docRef = db.collection("reminders").doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return reply(event.replyToken, "ไม่พบแจ้งเตือนนี้");
+    }
+
+    await docRef.delete();
+
+    return reply(event.replyToken, "🗑 ลบแจ้งเตือนเรียบร้อย");
+  }
+
+  return false;
+}
+
+/* ================= SCHEDULER FUNCTION ================= */
 
 async function handleReminders() {
 
@@ -35,19 +128,9 @@ async function handleReminders() {
     snapshot.forEach(doc => {
 
       const data = doc.data();
-      if (!data.groupId) return;
+      if (!data.groupId || !data.date) return;
 
-      const rawDate =
-        data.targetDate ||
-        data.eventDate ||
-        data.date;
-
-      if (!rawDate) return;
-
-      const eventDate = rawDate.toDate
-        ? rawDate.toDate()
-        : new Date(rawDate);
-
+      const eventDate = new Date(data.date);
       const eventOnly = toThaiDateOnly(eventDate);
 
       const diffDays = Math.round(
@@ -79,8 +162,6 @@ async function handleReminders() {
         type: "text",
         text: msg
       });
-
-      console.log("📤 Reminder sent:", groupId);
     }
 
   } catch (err) {
@@ -88,4 +169,4 @@ async function handleReminders() {
   }
 }
 
-module.exports = { handleReminders };
+module.exports = { handle, handleReminders };
