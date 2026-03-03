@@ -22,7 +22,13 @@ const DEFAULT_MODULES = {
 };
 
 /* ===================================================== */
-/* 🔥 PUSH + LOG (console อย่างเดียว) */
+/* 🔒 MASTER LOCK (กันเรียกซ้ำ) */
+/* ===================================================== */
+
+let masterRecallLock = false;
+
+/* ===================================================== */
+/* 🔥 PUSH + LOG */
 /* ===================================================== */
 
 async function safeReply(message) {
@@ -44,22 +50,45 @@ async function safeReply(message) {
 }
 
 /* ===================================================== */
-/* 🔥 MASTER RECALL (ยิงทุกกลุ่ม) */
+/* 🔥 MASTER RECALL */
 /* ===================================================== */
 
 async function runMasterRecall() {
 
-  console.log("🚀 Master Recall Started");
-
-  if (typeof reminder.runMissedReminderAllGroups === "function") {
-    await reminder.runMissedReminderAllGroups();
+  if (masterRecallLock) {
+    console.log("⚠️ Master Recall skipped (already running)");
+    return false;
   }
 
-  if (typeof general.runMissedGeneralAllGroups === "function") {
-    await general.runMissedGeneralAllGroups();
+  masterRecallLock = true;
+
+  try {
+
+    console.log("🚀 Master Recall Started");
+
+    if (typeof reminder.runMissedReminderAllGroups === "function") {
+      await reminder.runMissedReminderAllGroups();
+    }
+
+    if (typeof general.runMissedGeneralAllGroups === "function") {
+      await general.runMissedGeneralAllGroups();
+    }
+
+    console.log("✅ Master Recall Completed");
+
+    return true;
+
+  } catch (err) {
+    console.error("Master Recall Error:", err);
+    return false;
   }
 
-  console.log("✅ Master Recall Completed");
+  finally {
+    setTimeout(() => {
+      masterRecallLock = false;
+      console.log("🔓 Master Recall Unlock");
+    }, 60000); // กันยิงซ้ำ 1 นาที
+  }
 }
 
 /* ===================================================== */
@@ -81,7 +110,7 @@ async function handleMessage(event) {
     const normalized = text.toLowerCase();
 
     /* ===============================
-       🔥 เรียกแจ้งเตือน Master (เฉพาะกลุ่มนี้)
+       🔥 เรียกแจ้งเตือน Master
     ================================ */
 
     if (
@@ -90,11 +119,15 @@ async function handleMessage(event) {
     ) {
       try {
 
-        await runMasterRecall();
+        const success = await runMasterRecall();
 
-        return safeReply(
-          "✅ ระบบเรียกแจ้งเตือนย้อนหลัง (General + Reminder) ทุกกลุ่มเรียบร้อยแล้ว"
-        );
+        if (success) {
+          return safeReply(
+            "✅ เรียกแจ้งเตือนครบ (วันนี้ + ย้อนหลัง + ล่วงหน้า 3 วัน) ทุกกลุ่มเรียบร้อยแล้ว"
+          );
+        }
+
+        return safeReply("⚠️ ระบบกำลังทำงานอยู่ กรุณารอสักครู่");
 
       } catch (err) {
         console.error(err);
@@ -209,95 +242,6 @@ function buildMainMenu() {
 Smile เซ็ต1 - เซ็ต8 เปิดระบบ
 help 1 - help 8 ดูรายละเอียด
 `;
-}
-
-/* ===================================================== */
-/* HELP DETAIL */
-/* ===================================================== */
-
-function buildModuleDetail(number, groupId) {
-
-  switch (number) {
-
-    case "3":
-
-      if (groupId === TARGET_GROUP) {
-        return `
-⏰ ระบบแจ้งเตือนล่วงหน้า
-
-พิมพ์:
-แจ้งเตือน ประชุมทีม 25/3/2026
-
-รองรับรูปแบบวันที่:
-1/3/2026
-01/03/2026
-1/3/2569
-
-คำสั่ง:
-ดูแจ้งเตือน
-ดูแจ้งเตือนที่ผ่านไปแล้ว
-ลบแจ้งเตือน <ID>
-
-🔥 คำสั่งพิเศษ (เฉพาะกลุ่มนี้):
-พิมพ์:
-เรียกแจ้งเตือน
-
-ใช้สำหรับให้ระบบตรวจสอบแจ้งเตือนที่อาจพลาดไปทันที
-กรณี cron ไม่ทำงานหรือ server รีสตาร์ท
-
-`;
-      }
-
-      return `
-⏰ ระบบแจ้งเตือนล่วงหน้า
-
-พิมพ์:
-แจ้งเตือน ประชุมทีม 25/3/2026
-
-รองรับรูปแบบวันที่:
-1/3/2026
-01/03/2026
-1/3/2569
-
-คำสั่ง:
-ดูแจ้งเตือน
-ดูแจ้งเตือนที่ผ่านไปแล้ว
-ลบแจ้งเตือน <ID>
-`;
-
-    case "4":
-      return `📝 ระบบบันทึกถาวร
-คำสั่ง:
-บันทึก วันนี้ประชุม 18.00
-ดูบันทึก`;
-
-    case "5":
-      return `📘 ระบบรายงานการรับใช้
-คำสั่ง:
-รายงานการรับใช้ แจกถุงยังชีพ 20 ชุด
-สรุปรายสัปดาห์`;
-
-    case "6":
-      return `👤 ระบบทะเบียนสมาชิก
-คำสั่ง:
-ลงทะเบียน สมชาย ใจดี`;
-
-    case "7":
-      return `📢 ระบบแจ้งเตือนทั่วไป
-
-คำสั่ง:
-ดูตาราง
-เปิด fri12
-ปิด fri12`;
-
-    case "8":
-      return `📊 ดูสถานะระบบ
-คำสั่ง:
-Smile เซ็ต8`;
-
-    default:
-      return "ไม่พบระบบนี้";
-  }
 }
 
 /* ===================================================== */
