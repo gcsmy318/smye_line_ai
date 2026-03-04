@@ -69,7 +69,6 @@ async function safeReply(event, message) {
   }
 }
 
-
 /* ===================================================== */
 
 async function handleMessage(event) {
@@ -161,7 +160,6 @@ async function handleMessage(event) {
 
       } finally {
 
-        /* 🔧 reset lock */
         callApiRunning = false;
 
       }
@@ -180,7 +178,6 @@ async function handleMessage(event) {
     if (isHelpCommand(normalized)) {
       return safeReply(event, buildMainMenu());
     }
-
 
     const db = getDB();
     const docRef = db.collection("groups").doc(groupId);
@@ -204,7 +201,7 @@ async function handleMessage(event) {
 
     if (normalized.startsWith("smile")) {
 
-      const command = text.replace(/smile/i, "").trim();
+      const command = normalized.replace("smile", "").trim();
 
       if (command.includes("เซ็ต")) {
         return handleSetCommand(event, command, docRef);
@@ -241,7 +238,7 @@ async function handleSetCommand(event, text, docRef) {
     "เซ็ต8": "status"
   };
 
-  const key = Object.keys(setMap).find(k => text.includes(k));
+  const key = Object.keys(setMap).find(k => text.replace(/\s/g,"").includes(k));
 
   if (!key) {
     return safeReply(event, "ไม่พบคำสั่งเซ็ต");
