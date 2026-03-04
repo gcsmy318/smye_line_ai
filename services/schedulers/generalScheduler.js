@@ -151,6 +151,12 @@ async function broadcast(message, settingKey) {
 
     const wait = ms => new Promise(r => setTimeout(r, ms));
 
+    /* 🔥 เพิ่มตรงนี้ */
+    while (queue.isBusy()) {
+      console.log("⏳ waiting queue...");
+      await wait(2000);
+    }
+
     let sentCount = 0;
     let groupList = [];
 

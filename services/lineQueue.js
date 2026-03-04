@@ -48,7 +48,7 @@ async function processQueue() {
 
     }
 
-    await wait(1500); // throttle
+    await wait(2000); // throttle
 
   }
 
