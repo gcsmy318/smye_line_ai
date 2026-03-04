@@ -3,7 +3,7 @@ const { client } = require("../config/line");
 const queue = [];
 let running = false;
 
-const RATE_LIMIT = 10000; // ⭐ 5 วินาที ต่อข้อความ
+const RATE_LIMIT = 10000; // ⭐ เว้น 10 วินาที ต่อข้อความ
 const RETRY_DELAY = 60000;
 
 function wait(ms) {
@@ -22,13 +22,15 @@ async function processQueue() {
 
   console.log("🚀 queue start");
 
-  await wait(5000); // ⭐ รอก่อนส่งข้อความแรก
+  await wait(8000); // ⭐ เพิ่มเวลารอก่อนส่งครั้งแรก (เดิม 5s)
 
   while (queue.length > 0) {
 
     const job = queue.shift();
 
     try {
+
+      await wait(2000); // ⭐ เพิ่ม delay เล็กน้อยก่อน push จริง
 
       console.log("📤 sending:", job.to);
 
