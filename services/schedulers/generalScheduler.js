@@ -2,9 +2,30 @@ const cron = require("node-cron");
 const { getDB } = require("../../config/firebase");
 const { client } = require("../../config/line");
 const { handleReminders } = require("../modules/reminderModule");
+
+/* ===================================================== */
+
+const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
+
+/* ===================================================== */
+/* 🔥 MASTER LOG */
+/* ===================================================== */
+
+async function logToMaster(message) {
+  try {
+    await client.pushMessage(TARGET_GROUP, {
+      type: "text",
+      text: `📡 SYSTEM LOG\n${message}`
+    });
+  } catch (err) {
+    console.error("Master Log Error:", err.message);
+  }
+}
+
 /* =====================================================
-   UTIL: คำนวณวันอาทิตย์ถัดไป
+   UTIL
 ===================================================== */
+
 function getNextSunday() {
   const now = new Date();
   const day = now.getDay();
@@ -20,6 +41,7 @@ function formatThaiDate(date) {
   const year = date.getFullYear() + 543;
   return `${day} ${month} ${year}`;
 }
+
 
 /* =====================================================
    TEMPLATE ข้อความ
@@ -100,6 +122,9 @@ async function broadcast(message, settingKey) {
 
   const groups = await db.collection("groups").get();
 
+  let sentCount = 0;
+  let groupList = [];
+
   for (const g of groups.docs) {
 
     const data = g.data();
@@ -114,8 +139,16 @@ async function broadcast(message, settingKey) {
       text: message
     });
 
+    sentCount++;
+    groupList.push(g.id);
+
     console.log("📤 General sent:", settingKey, g.id);
   }
+
+  // 🔥 เพิ่ม log (ไม่แตะของเดิม)
+  await logToMaster(
+    `📢 General: ${settingKey}\nส่ง ${sentCount} กลุ่ม\n${groupList.join("\n")}`
+  );
 }
 
 /* =====================================================
@@ -125,40 +158,50 @@ async function broadcast(message, settingKey) {
 function startGeneralScheduler() {
 
   console.log("⏰ General Scheduler Started");
+  logToMaster("🚀 General Scheduler Started");
 
   // ศุกร์ 12:00
   cron.schedule("0 12 * * 5", async () => {
+    await logToMaster("⏰ Trigger fri12");
     await broadcast(buildFriday12(), "fri12");
   }, { timezone: "Asia/Bangkok" });
 
   // อาทิตย์ 09:00
   cron.schedule("0 9 * * 0", async () => {
+    await logToMaster("⏰ Trigger sun9");
     await broadcast(buildSunday9(), "sun9");
   }, { timezone: "Asia/Bangkok" });
 
   // อาทิตย์ 11:30
   cron.schedule("30 11 * * 0", async () => {
+    await logToMaster("⏰ Trigger sun1130");
     await broadcast(buildSunday1130(), "sun1130");
   }, { timezone: "Asia/Bangkok" });
 
   // จันทร์ 12:00
   cron.schedule("0 12 * * 1", async () => {
+    await logToMaster("⏰ Trigger mon12");
     await broadcast(buildMondayProgram(), "mon12");
   }, { timezone: "Asia/Bangkok" });
 
   // เสาร์ 15:00
   cron.schedule("0 15 * * 6", async () => {
+    await logToMaster("⏰ Trigger sat15");
     await broadcast(buildSaturday15(), "sat15");
   }, { timezone: "Asia/Bangkok" });
 
-  // 🔥 8 โมงเช้า (อาทิตย์/จันทร์/อังคาร/ศุกร์)
+  // 🔥 8 โมงเช้า
   cron.schedule("0 8 * * 0,1,2,5", async () => {
+    await logToMaster("⏰ Trigger stats8");
     await broadcast(buildMorningStats(), "stats8");
   }, { timezone: "Asia/Bangkok" });
 
-    cron.schedule("0 7 * * *", async () => {
-      await handleReminders();
-    }, { timezone: "Asia/Bangkok" });
+  // 🔔 7:30 Reminder
+  cron.schedule("30 7 * * *", async () => {
+    await logToMaster("🔔 Trigger handleReminders()");
+    await handleReminders();
+    await logToMaster("✅ handleReminders เสร็จแล้ว");
+  }, { timezone: "Asia/Bangkok" });
 
 }
 

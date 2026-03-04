@@ -18,6 +18,51 @@ function toThaiDateOnly(date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+/* ===================================================== */
+/* 🔥 NEW: รองรับทุก format วันที่ */
+/* ===================================================== */
+
+function parseAnyDate(data) {
+
+  // 1️⃣ ถ้ามี targetDate (Firestore Timestamp)
+  if (data.targetDate) {
+    if (typeof data.targetDate.toDate === "function") {
+      return data.targetDate.toDate();
+    }
+    return new Date(data.targetDate);
+  }
+
+  // 2️⃣ ถ้ามี originalDate
+  if (data.originalDate) {
+    return parseSlashDate(data.originalDate);
+  }
+
+  // 3️⃣ ถ้ามี date
+  if (data.date) {
+    return parseSlashDate(data.date);
+  }
+
+  return null;
+}
+
+function parseSlashDate(str) {
+  if (!str || typeof str !== "string") return null;
+
+  const parts = str.split("/");
+  if (parts.length !== 3) return new Date(str);
+
+  let [day, month, year] = parts.map(Number);
+
+  if (year < 2500 && year < 2100) {
+    // ค.ศ.
+  } else if (year > 2500) {
+    // พ.ศ. → ค.ศ.
+    year = year - 543;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
 /* ================= CHAT COMMAND ================= */
 
 async function handle(event) {
@@ -30,8 +75,6 @@ async function handle(event) {
 
   /* ===============================
      เพิ่มแจ้งเตือน
-     รูปแบบ:
-     แจ้งเตือน ประชุมทีม 25/3/2026
   ================================ */
   if (text.startsWith("แจ้งเตือน ")) {
 
@@ -52,6 +95,8 @@ async function handle(event) {
       groupId,
       title,
       date: dateStr,
+      originalDate: dateStr,
+      targetDate: parseSlashDate(dateStr),
       createdAt: new Date()
     });
 
@@ -75,7 +120,7 @@ async function handle(event) {
 
     snapshot.forEach(doc => {
       const d = doc.data();
-      msg += `• ${d.title} (${d.date})\n   ID: ${d.id}\n`;
+      msg += `• ${d.title} (${d.originalDate || d.date})\n   ID: ${d.id}\n`;
     });
 
     return reply(event.replyToken, msg);
@@ -83,8 +128,6 @@ async function handle(event) {
 
   /* ===============================
      ลบแจ้งเตือน
-     รูปแบบ:
-     ลบแจ้งเตือน abc12
   ================================ */
   if (text.startsWith("ลบแจ้งเตือน ")) {
 
@@ -128,9 +171,11 @@ async function handleReminders() {
     snapshot.forEach(doc => {
 
       const data = doc.data();
-      if (!data.groupId || !data.date) return;
+      if (!data.groupId) return;
 
-      const eventDate = new Date(data.date);
+      const eventDate = parseAnyDate(data);
+      if (!eventDate) return;
+
       const eventOnly = toThaiDateOnly(eventDate);
 
       const diffDays = Math.round(
