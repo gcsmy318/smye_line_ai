@@ -211,7 +211,7 @@ function startGeneralScheduler() {
   }, { timezone: "Asia/Bangkok" });
 
   // 🔔 7:55 Reminder
-  cron.schedule("15 8 * * *", async () => {
+  cron.schedule("0 7 * * *", async () => {
   //  await logToMaster("🔔 Trigger handleReminders()");
     await handleReminders();
   //  await logToMaster("✅ handleReminders เสร็จแล้ว");
