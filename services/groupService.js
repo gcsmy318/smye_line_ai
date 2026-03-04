@@ -9,7 +9,7 @@ const general = require("./modules/generalModule");
 
 /* 🔥 เพิ่มเพื่อรองรับ callapi */
 const { handleReminders } = require("./modules/reminderModule");
-const scheduler = require("./schedulers/reminderScheduler");
+const scheduler = require("./schedulers/generalScheduler");
 /* ================================= */
 
 const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
