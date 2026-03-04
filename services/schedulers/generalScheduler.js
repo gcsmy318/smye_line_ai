@@ -17,9 +17,6 @@ async function logToMaster(message) {
 
     if (!message) return;
 
-    // กันยิงพร้อมกันเร็วเกินไป
-    await new Promise(r => setTimeout(r, 300));
-
     await client.pushMessage(TARGET_GROUP, {
       type: "text",
       text: `📡 SYSTEM LOG\n${message}`
@@ -27,27 +24,13 @@ async function logToMaster(message) {
 
   } catch (err) {
 
-    // 🔥 กัน 429 (Too Many Requests)
-    if (err.response && err.response.status === 429) {
-
-      console.warn("⚠️ LINE Rate Limited (429) - retrying once...");
-
-      try {
-
-        await new Promise(r => setTimeout(r, 1000));
-
-        await client.pushMessage(TARGET_GROUP, {
-          type: "text",
-          text: `📡 SYSTEM LOG (Retry)\n${message}`
-        });
-
-      } catch (retryErr) {
-        console.error("❌ Master Log Retry Failed:", retryErr.message);
-      }
-
-    } else {
-      console.error("❌ Master Log Error:", err.message);
+    // 🔥 ถ้า 429 หรือ error ใด ๆ -> เงียบ
+    if (err?.response?.status === 429) {
+      return; // ไม่ retry ไม่ log ไม่ error
     }
+
+    // error อื่น log แค่ console
+    console.error("Master Log Error:", err.message);
   }
 }
 
@@ -187,7 +170,9 @@ async function broadcast(message, settingKey) {
 function startGeneralScheduler() {
 
   console.log("⏰ General Scheduler Started");
-  logToMaster("🚀 General Scheduler Started");
+
+  // ❌ ไม่ log ตอน start (ลด 429)
+  // logToMaster("🚀 General Scheduler Started");
 
   // ศุกร์ 12:00
   cron.schedule("0 12 * * 5", async () => {
@@ -219,14 +204,14 @@ function startGeneralScheduler() {
     await broadcast(buildSaturday15(), "sat15");
   }, { timezone: "Asia/Bangkok" });
 
-  // 🔥 8 โมงเช้า
+  // 8 โมงเช้า
   cron.schedule("0 8 * * 0,1,2,5", async () => {
     await logToMaster("⏰ Trigger stats8");
     await broadcast(buildMorningStats(), "stats8");
   }, { timezone: "Asia/Bangkok" });
 
-  // 🔔 7 Reminder
-  cron.schedule("55 7 * * *", async () => {
+  // 🔔 7:55 Reminder
+  cron.schedule("2 8 * * *", async () => {
     await logToMaster("🔔 Trigger handleReminders()");
     await handleReminders();
     await logToMaster("✅ handleReminders เสร็จแล้ว");
