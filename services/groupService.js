@@ -32,6 +32,8 @@ async function safeReply(message) {
       text: message
     });
 
+    await new Promise(r => setTimeout(r, 150));
+
   } catch (err) {
     console.error("Push Error:", err.message);
   }
@@ -57,7 +59,8 @@ async function handleMessage(event) {
        HELP
     ================================ */
 
-    const helpMatch = normalized.match(/^help\s*([3-8])/);
+    const helpMatch = normalized.match(/^help\s*([3-8])$/);
+
     if (helpMatch) {
       return safeReply(buildModuleDetail(helpMatch[1]));
     }
@@ -90,7 +93,7 @@ async function handleMessage(event) {
 
     if (normalized.startsWith("smile")) {
 
-      const command = normalized.replace("smile", "").trim();
+      const command = text.replace(/smile/i, "").trim();
 
       if (command.includes("เซ็ต")) {
         return handleSetCommand(command, docRef);
