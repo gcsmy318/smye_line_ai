@@ -175,9 +175,9 @@ async function handleReminders() {
 
       const eventOnly = toThaiDateOnly(eventDate);
 
-      const diffDays = Math.round(
-        (eventOnly - todayOnly) / (1000 * 60 * 60 * 24)
-      );
+        const diffDays = Math.floor(
+          (eventOnly - todayOnly) / (1000 * 60 * 60 * 24)
+        );
 
       if (!groupMap[data.groupId]) {
         groupMap[data.groupId] = [];
