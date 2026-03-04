@@ -59,14 +59,16 @@ async function handleMessage(event) {
        HELP
     ================================ */
 
-    const helpMatch = normalized.match(/^help\s*([3-8])$/);
+    const helpMatch = normalized.match(/^help\s*([3-8])$/i);
 
     if (helpMatch) {
-      return safeReply(buildModuleDetail(helpMatch[1]));
+      await safeReply(buildModuleDetail(helpMatch[1]));
+      return true;
     }
 
     if (isHelpCommand(normalized)) {
-      return safeReply(buildMainMenu());
+      await safeReply(buildMainMenu());
+      return true;
     }
 
     /* ===============================
