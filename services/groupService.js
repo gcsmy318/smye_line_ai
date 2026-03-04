@@ -174,9 +174,6 @@ async function handleMessage(event) {
       return safeReply(event, buildMainMenu());
     }
 
-    /* ===============================
-       DB
-    ================================ */
 
     const db = getDB();
     const docRef = db.collection("groups").doc(groupId);
