@@ -3,8 +3,8 @@ const { client } = require("../config/line");
 const queue = [];
 let running = false;
 
-const RATE_LIMIT = 4000;   // ⭐ 4 วิ / message
-const RETRY_DELAY = 60000; // ⭐ 60 วิ
+const RATE_LIMIT = 10000; // ⭐ 5 วินาที ต่อข้อความ
+const RETRY_DELAY = 60000;
 
 function wait(ms) {
   return new Promise(r => setTimeout(r, ms));
@@ -22,7 +22,7 @@ async function processQueue() {
 
   console.log("🚀 queue start");
 
-  await wait(3000); // ⭐ สำคัญ: delay ก่อน push แรก
+  await wait(5000); // ⭐ รอก่อนส่งข้อความแรก
 
   while (queue.length > 0) {
 
@@ -47,12 +47,9 @@ async function processQueue() {
         await wait(RETRY_DELAY);
 
         queue.unshift(job);
+
         continue;
 
-      }
-
-      if (err.statusCode === 403) {
-        console.log("❌ bot not in group:", job.to);
       }
 
     }
@@ -69,10 +66,7 @@ async function processQueue() {
 
 function push(to, message) {
 
-  if (!to) {
-    console.log("⚠ queue skip: target undefined");
-    return;
-  }
+  if (!to) return;
 
   queue.push({ to, message });
 
