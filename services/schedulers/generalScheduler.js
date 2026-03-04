@@ -171,10 +171,15 @@ async function broadcast(message, settingKey) {
 
       let sent = false;
 
-      queue.push(g.id, {
-        type: "text",
-        text: message
-      });
+    while (queue.isBusy()) {
+      console.log("⏳ queue busy...");
+      await wait(2000);
+    }
+
+    queue.push(g.id, {
+      type: "text",
+      text: message
+    });
 
       sent = true;
 
