@@ -178,12 +178,10 @@ async function broadcast(message, settingKey) {
           console.log("❌ push fail:", g.id);
 
         }
-
       }
-
     }
 
-    await wait(1000); // throttle กัน 429
+    await wait(700); // throttle กัน 429
 
   }
 
