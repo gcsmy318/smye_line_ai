@@ -22,6 +22,8 @@ async function processQueue() {
 
   console.log("🚀 queue start");
 
+  await wait(3000); // ⭐ สำคัญมาก
+
   while (queue.length > 0) {
 
     const job = queue.shift();
