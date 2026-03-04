@@ -3,8 +3,8 @@ const { client } = require("../config/line");
 const queue = [];
 let running = false;
 
-const RATE_LIMIT = 1500; // ⭐ 1.5 sec ต่อ message
-const RETRY_DELAY = 15000;
+const RATE_LIMIT = 3000; // ⭐ 1.5 sec ต่อ message
+const RETRY_DELAY = 60000 ;
 
 function wait(ms) {
   return new Promise(r => setTimeout(r, ms));
