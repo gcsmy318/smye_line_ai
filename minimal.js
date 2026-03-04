@@ -48,17 +48,9 @@ app.post(
 
       const events = req.body.events || [];
 
-      for (const event of events) {
-
-        if (
-          event &&
-          event.type === "message" &&
-          event.message &&
-          event.message.type === "text"
-        ) {
-          await handleMessage(event);
-        }
-      }
+     for (const event of events) {
+       await handleMessage(event);
+     }
 
       res.sendStatus(200);
 
