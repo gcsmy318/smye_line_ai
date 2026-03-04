@@ -38,7 +38,12 @@ async function safeReply(event, message) {
 
     if (!message) return;
 
-    const to = event.source.groupId || event.source.userId;
+    const to = event?.source?.groupId || event?.source?.userId;
+
+    if (!to) {
+      console.log("⚠ safeReply skip: no target");
+      return;
+    }
 
     queue.push(to, {
       type: "text",

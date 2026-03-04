@@ -70,12 +70,16 @@ async function processQueue() {
 
 function push(to, message) {
 
+  if (!to) {
+    console.log("⚠ queue skip: target undefined");
+    return;
+  }
+
   queue.push({ to, message });
 
   console.log("📥 queue add:", to, "queueSize:", queue.length);
 
   processQueue();
-
 }
 
 module.exports = { push, isBusy };
