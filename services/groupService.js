@@ -57,7 +57,7 @@ async function handleMessage(event) {
        HELP
     ================================ */
 
-    const helpMatch = normalized.match(/^help\s*([3-8])$/);
+    const helpMatch = normalized.match(/^help\s*([3-8])/);
     if (helpMatch) {
       return safeReply(buildModuleDetail(helpMatch[1]));
     }
@@ -92,44 +92,48 @@ async function handleMessage(event) {
 
       const command = normalized.replace("smile", "").trim();
 
-        if (command.includes("เซ็ต")) {
+      if (command.includes("เซ็ต")) {
         return handleSetCommand(command, docRef);
       }
     }
 
-    /* ===================================================== */
-    /* 🔥 CALL API MANUAL TRIGGER */
-    /* ===================================================== */
+    /* =====================================================
+       🔥 CALL API MANUAL TRIGGER
+    ===================================================== */
 
-  if (normalized === "callapi") {
+    if (normalized === "callapi") {
 
-    /* อนุญาตเฉพาะ MASTER GROUP */
-    if (groupId !== TARGET_GROUP) return;
+      if (groupId !== TARGET_GROUP) return;
 
-    console.log("📞 Manual callapi triggered");
+      console.log("📞 Manual callapi triggered");
 
-    /* เรียกทุก broadcast */
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+
     await scheduler.broadcast(scheduler.buildFriday12(), "fri12");
+    await wait(1000);
 
     await scheduler.broadcast(scheduler.buildSunday9(), "sun9");
+    await wait(1000);
 
     await scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
+    await wait(1000);
 
     await scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
+    await wait(1000);
 
     await scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
+    await wait(1000);
 
     await scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
+await wait(1000);
+      await reminder.handleReminders();
 
-    /* เรียก reminder */
-    await reminder.handleReminders();
+      console.log("CALLAPI RUN");
+      console.log("groupId:", groupId);
+      console.log("today:", new Date().getDay());
 
-    console.log("CALLAPI RUN");
-    console.log("groupId:", groupId);
-    console.log("today:", new Date().getDay());
-
-    return safeReply("✅ เรียก scheduler ทั้งหมดเรียบร้อยแล้ว");
-  }
+      return safeReply("✅ เรียก scheduler ทั้งหมดเรียบร้อยแล้ว");
+    }
 
     /* ===============================
        ROUTER
@@ -160,7 +164,10 @@ async function handleSetCommand(text, docRef) {
   };
 
   const key = Object.keys(setMap).find(k => text.includes(k));
-  if (!key) return;
+
+  if (!key) {
+    return safeReply("ไม่พบคำสั่งเซ็ต");
+  }
 
   const moduleName = setMap[key];
 
