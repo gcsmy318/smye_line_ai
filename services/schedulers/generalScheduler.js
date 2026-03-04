@@ -3,10 +3,10 @@ const { getDB } = require("../../config/firebase");
 const { client } = require("../../config/line");
 const { handleReminders } = require("../modules/reminderModule");
 
+
 /* ===================================================== */
 
 const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
-
 
 /* =====================================================
    UTIL
@@ -27,7 +27,6 @@ function formatThaiDate(date) {
   const year = date.getFullYear() + 543;
   return `${day} ${month} ${year}`;
 }
-
 
 /* =====================================================
    TEMPLATE ข้อความ
@@ -131,7 +130,7 @@ async function broadcast(message, settingKey) {
     console.log("📤 General sent:", settingKey, g.id);
   }
 
-   console.log(  `📢 General: ${settingKey}\nส่ง ${sentCount} กลุ่ม\n${groupList.join("\n")}`  );
+  console.log(`📢 General: ${settingKey}\nส่ง ${sentCount} กลุ่ม\n${groupList.join("\n")}`);
 }
 
 /* =====================================================
@@ -142,49 +141,44 @@ function startGeneralScheduler() {
 
   console.log("⏰ General Scheduler Started");
 
-  // ศุกร์ 12:00
   cron.schedule("0 12 * * 5", async () => {
     console.log("⏰ Trigger fri12");
     await broadcast(buildFriday12(), "fri12");
   }, { timezone: "Asia/Bangkok" });
 
-  // อาทิตย์ 09:00
   cron.schedule("0 9 * * 0", async () => {
-   console.log("⏰ Trigger sun9");
+    console.log("⏰ Trigger sun9");
     await broadcast(buildSunday9(), "sun9");
   }, { timezone: "Asia/Bangkok" });
 
-  // อาทิตย์ 11:30
   cron.schedule("30 11 * * 0", async () => {
-   // await logToMaster("⏰ Trigger sun1130");
     await broadcast(buildSunday1130(), "sun1130");
   }, { timezone: "Asia/Bangkok" });
 
-  // จันทร์ 12:00
   cron.schedule("0 12 * * 1", async () => {
-   console.log("⏰ Trigger mon12");
+    console.log("⏰ Trigger mon12");
     await broadcast(buildMondayProgram(), "mon12");
   }, { timezone: "Asia/Bangkok" });
 
-  // เสาร์ 15:00
   cron.schedule("0 15 * * 6", async () => {
-   console.log("⏰ Trigger sat15");
+    console.log("⏰ Trigger sat15");
     await broadcast(buildSaturday15(), "sat15");
   }, { timezone: "Asia/Bangkok" });
 
-  // 8 โมงเช้า
   cron.schedule("0 8 * * 0,1,2,5", async () => {
-   console.log("⏰ Trigger stats8");
+    console.log("⏰ Trigger stats8");
     await broadcast(buildMorningStats(), "stats8");
   }, { timezone: "Asia/Bangkok" });
 
-  // 🔔 7:0 Reminder
   cron.schedule("0 7 * * *", async () => {
     console.log("🔔 Trigger handleReminders()");
     await handleReminders();
-   console.log("✅ handleReminders เสร็จแล้ว");
+    console.log("✅ handleReminders เสร็จแล้ว");
   }, { timezone: "Asia/Bangkok" });
-
 }
 
-module.exports = { startGeneralScheduler };
+module.exports = {
+  startGeneralScheduler,
+  broadcast,
+  buildMorningStats
+};

@@ -1,183 +1,223 @@
-const cron = require("node-cron");
 const { getDB } = require("../../config/firebase");
+const { reply } = require("../../config/line");
 const { client } = require("../../config/line");
-const { handleReminders } = require("../modules/reminderModule");
+const { v4: uuidv4 } = require("uuid");
+
+/* ================= TIME ================= */
+
+function getThaiNow() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+  );
+}
+
+function toThaiDateOnly(date) {
+  const d = new Date(
+    new Date(date).toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+  );
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
 
 /* ===================================================== */
+/* 🔥 เพิ่ม parser รองรับทุก format (ไม่กระทบของเดิม) */
+/* ===================================================== */
 
-const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
+function parseSlashDate(str) {
+  if (!str || typeof str !== "string") return null;
 
-/* =====================================================
-   UTIL
-===================================================== */
+  const parts = str.split("/");
+  if (parts.length !== 3) return new Date(str);
 
-function getNextSunday() {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = day === 0 ? 7 : 7 - day;
-  const nextSunday = new Date(now);
-  nextSunday.setDate(now.getDate() + diff);
-  return nextSunday;
-}
+  let [day, month, year] = parts.map(Number);
 
-function formatThaiDate(date) {
-  const day = date.getDate();
-  const month = date.toLocaleDateString("th-TH", { month: "short" });
-  const year = date.getFullYear() + 543;
-  return `${day} ${month} ${year}`;
-}
-
-/* =====================================================
-   TEMPLATE ข้อความ
-===================================================== */
-
-function buildFriday12() {
-  return `🔔 แจ้งเตือนวันนี้ ซ้อมนมัสการ 16.30 นะครับ`;
-}
-
-function buildSunday9() {
-  return `🔔 แจ้งเตือนเช้าวันอาทิตย์
-hope channel มีไหมครับ ???
-เพลงตอบสนอง เพลงอะไรครับ ???`;
-}
-
-function buildSunday1130() {
-  return `🎵 เตรียมก่อนเทศนา เพลงตอบสนอง เพลงอะไรครับ ???`;
-}
-
-function buildMondayProgram() {
-
-  const sunday = getNextSunday();
-  const dateStr = formatThaiDate(sunday);
-
-  return `---------------------------------------
-โปรแกรมวันอาทิตย์ ${dateStr}
-**************************
-1. teaser Sustainable
-2. อธิฐาน นมัสการ -
-3. เคลื่อนไหว : -
-4. มหาสนิท : - เพลง -
-5. ถวายทรัพย์ - เพลง -
-6. ต้อนรับ / VIP - เพลง -
-   1.
-   2.
-   3.
-7. hope channel -
-8. คำพยานสด นำโดย -
-   1.
-   2.
-9. อนุสรณ์พระพร นำโดย - เพลง -
-10. VTR แนะนำผู้เทศน์
-11. เทศนา โดย -
-12. เพลงตอบสนอง -
-13. อธิฐานปิด
-******งานเบื้องหลัง*******
-ผู้จัดการรอบ -
-mixer / mic -
-Support คอมฯ : -
-BS :
-โต๊ะต้อนรับ -
-คจ.เด็ก -
-*****งานนมัสการ********
-กีต้าไฟฟ้า -
-กลอง -
-เบส -
-คีบอร์ด -
-คอรัส -
-**********************`;
-}
-
-function buildSaturday15() {
-  return `📣 แจ้งเตือน ชั้นสร้าง เจอกัน 18.00 น.`;
-}
-
-function buildMorningStats() {
-  return `📢 รบกวนผู้นำทุกท่านส่งสถิติด้วยนะครับ ขอบคุณครับ`;
-}
-
-/* =====================================================
-   BROADCAST
-===================================================== */
-
-async function broadcast(message, settingKey) {
-
-  const db = getDB();
-  if (!db) return;
-
-  const groups = await db.collection("groups").get();
-
-  let sentCount = 0;
-  let groupList = [];
-
-  for (const g of groups.docs) {
-
-    const data = g.data();
-
-    if (!data.modules?.general) continue;
-
-    const settings = data.generalSettings || {};
-    if (settings[settingKey] === false) continue;
-
-    await client.pushMessage(g.id, {
-      type: "text",
-      text: message
-    });
-
-    sentCount++;
-    groupList.push(g.id);
-
-    console.log("📤 General sent:", settingKey, g.id);
+  if (year > 2500) {
+    year = year - 543; // รองรับ พ.ศ.
   }
 
-  console.log(`📢 General: ${settingKey}\nส่ง ${sentCount} กลุ่ม\n${groupList.join("\n")}`);
+  return new Date(year, month - 1, day);
 }
 
-/* =====================================================
-   START SCHEDULER
-===================================================== */
+function resolveEventDate(data) {
 
-function startGeneralScheduler() {
+  // 1️⃣ ถ้ามี targetDate (Timestamp)
+  if (data.targetDate) {
+    if (typeof data.targetDate.toDate === "function") {
+      return data.targetDate.toDate();
+    }
+    return new Date(data.targetDate);
+  }
 
-  console.log("⏰ General Scheduler Started");
+  // 2️⃣ ถ้ามี originalDate
+  if (data.originalDate) {
+    return parseSlashDate(data.originalDate);
+  }
 
-  cron.schedule("0 12 * * 5", async () => {
-    console.log("⏰ Trigger fri12");
-    await broadcast(buildFriday12(), "fri12");
-  }, { timezone: "Asia/Bangkok" });
+  // 3️⃣ ถ้ามี date
+  if (data.date) {
+    return parseSlashDate(data.date);
+  }
 
-  cron.schedule("0 9 * * 0", async () => {
-    console.log("⏰ Trigger sun9");
-    await broadcast(buildSunday9(), "sun9");
-  }, { timezone: "Asia/Bangkok" });
-
-  cron.schedule("30 11 * * 0", async () => {
-    await broadcast(buildSunday1130(), "sun1130");
-  }, { timezone: "Asia/Bangkok" });
-
-  cron.schedule("0 12 * * 1", async () => {
-    console.log("⏰ Trigger mon12");
-    await broadcast(buildMondayProgram(), "mon12");
-  }, { timezone: "Asia/Bangkok" });
-
-  cron.schedule("0 15 * * 6", async () => {
-    console.log("⏰ Trigger sat15");
-    await broadcast(buildSaturday15(), "sat15");
-  }, { timezone: "Asia/Bangkok" });
-
-  cron.schedule("0 8 * * 0,1,2,5", async () => {
-    console.log("⏰ Trigger stats8");
-    await broadcast(buildMorningStats(), "stats8");
-  }, { timezone: "Asia/Bangkok" });
-
-  cron.schedule("0 7 * * *", async () => {
-    console.log("🔔 Trigger handleReminders()");
-    await handleReminders();
-    console.log("✅ handleReminders เสร็จแล้ว");
-  }, { timezone: "Asia/Bangkok" });
+  return null;
 }
 
-module.exports = {
-  startGeneralScheduler,
-  broadcast,
-  buildMorningStats
-};
+/* ================= CHAT COMMAND ================= */
+
+async function handle(event) {
+
+  if (!event.message || event.message.type !== "text") return false;
+
+  const text = event.message.text.trim();
+  const groupId = event.source.groupId || event.source.userId;
+  const db = getDB();
+
+  /* ===============================
+     เพิ่มแจ้งเตือน
+  ================================ */
+  if (text.startsWith("แจ้งเตือน ")) {
+
+    const raw = text.replace("แจ้งเตือน", "").trim();
+    const parts = raw.split(" ");
+
+    if (parts.length < 2) {
+      return reply(event.replyToken, "รูปแบบ: แจ้งเตือน หัวข้อ 25/3/2026");
+    }
+
+    const dateStr = parts.pop();
+    const title = parts.join(" ");
+
+    const id = uuidv4().slice(0, 5);
+
+    await db.collection("reminders").doc(id).set({
+      id,
+      groupId,
+      title,
+      date: dateStr,
+      originalDate: dateStr,
+      targetDate: parseSlashDate(dateStr),
+      createdAt: new Date()
+    });
+
+    return reply(event.replyToken, `✅ บันทึกแจ้งเตือนแล้ว (ID: ${id})`);
+  }
+
+  /* ===============================
+     ดูแจ้งเตือน
+  ================================ */
+  if (text === "ดูแจ้งเตือน") {
+
+    const snapshot = await db.collection("reminders")
+      .where("groupId", "==", groupId)
+      .get();
+
+    if (snapshot.empty) {
+      return reply(event.replyToken, "ยังไม่มีแจ้งเตือน");
+    }
+
+    let msg = "📋 รายการแจ้งเตือน\n\n";
+
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      msg += `• ${d.title} (${d.originalDate || d.date})\n   ID: ${d.id}\n`;
+    });
+
+    return reply(event.replyToken, msg);
+  }
+
+  /* ===============================
+     ลบแจ้งเตือน
+  ================================ */
+  if (text.startsWith("ลบแจ้งเตือน ")) {
+
+    const id = text.replace("ลบแจ้งเตือน", "").trim();
+
+    if (!id || id.length !== 5) {
+      return reply(event.replyToken, "กรุณาระบุ ID 5 ตัว เช่น ลบแจ้งเตือน a1b2c");
+    }
+
+    const docRef = db.collection("reminders").doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return reply(event.replyToken, "ไม่พบแจ้งเตือนนี้");
+    }
+
+    await docRef.delete();
+
+    return reply(event.replyToken, "🗑 ลบแจ้งเตือนเรียบร้อย");
+  }
+
+  return false;
+}
+
+/* ================= SCHEDULER FUNCTION ================= */
+
+async function handleReminders() {
+
+  try {
+
+    const db = getDB();
+    if (!db) return;
+
+    const nowThai = getThaiNow();
+    const todayOnly = toThaiDateOnly(nowThai);
+
+    const snapshot = await db.collection("reminders").get();
+
+    const groupMap = {};
+
+    snapshot.forEach(doc => {
+
+      const data = doc.data();
+      if (!data.groupId) return;
+
+      const eventDate = resolveEventDate(data);
+      if (!eventDate) return;
+
+      const eventOnly = toThaiDateOnly(eventDate);
+
+        const diffDays = Math.floor(
+          (eventOnly - todayOnly) / (1000 * 60 * 60 * 24)
+        );
+
+      if (!groupMap[data.groupId]) {
+        groupMap[data.groupId] = [];
+      }
+
+       if (diffDays === 0)
+         groupMap[data.groupId].push(`📌 วันนี้: ${data.title}`);
+
+       // ล่วงหน้า 3 วัน (ของเดิม)
+       if (diffDays === 3)
+         groupMap[data.groupId].push(`⏳ อีก 3 วัน: ${data.title}`);
+
+       // 🔥 เพิ่มใหม่
+       if (diffDays === 2)
+         groupMap[data.groupId].push(`⏳ อีก 2 วัน: ${data.title}`);
+
+       if (diffDays === 1)
+         groupMap[data.groupId].push(`⏳ อีก 1 วัน: ${data.title}`);
+
+    });
+
+    for (const groupId in groupMap) {
+
+      if (!groupMap[groupId].length) continue;
+
+      let msg = "🔔 แจ้งเตือนประจำวัน\n\n";
+
+      groupMap[groupId].forEach((m, i) => {
+        msg += `${i + 1}. ${m}\n`;
+      });
+
+      await client.pushMessage(groupId, {
+        type: "text",
+        text: msg
+      });
+    }
+
+  } catch (err) {
+    console.error("Reminder Error:", err);
+  }
+}
+
+module.exports = { handle, handleReminders };

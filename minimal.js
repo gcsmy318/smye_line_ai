@@ -22,8 +22,12 @@ initFirebase();
 console.log("✅ Firebase initialized");
 
 /* 🔥 2️⃣ Start General Scheduler */
-startGeneralScheduler();
-console.log("⏰ General Scheduler started");
+try {
+  startGeneralScheduler();
+  console.log("⏰ General Scheduler started");
+} catch (err) {
+  console.error("❌ Scheduler Error:", err);
+}
 
 /* =====================================================
    📂 STATIC FILES
@@ -45,7 +49,13 @@ app.post(
       const events = req.body.events || [];
 
       for (const event of events) {
-        if (event.type === "message" && event.message.type === "text") {
+
+        if (
+          event &&
+          event.type === "message" &&
+          event.message &&
+          event.message.type === "text"
+        ) {
           await handleMessage(event);
         }
       }

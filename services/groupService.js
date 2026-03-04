@@ -8,7 +8,6 @@ const registry = require("./modules/registryModule");
 const general = require("./modules/generalModule");
 
 /* 🔥 เพิ่มเพื่อรองรับ callapi */
-const { handleReminders } = require("./modules/reminderModule");
 const scheduler = require("./schedulers/generalScheduler");
 /* ================================= */
 
@@ -99,15 +98,17 @@ async function handleMessage(event) {
     }
 
     /* ===================================================== */
-    /* 🔥 เพิ่ม callapi โดยไม่กระทบของเดิม */
+    /* 🔥 CALL API MANUAL TRIGGER */
     /* ===================================================== */
 
     if (normalized === "callapi") {
 
       console.log("📞 Manual callapi triggered");
 
-      await handleReminders();
+      /* 🔔 เรียก reminder */
+      await reminder.handleReminders();
 
+      /* 📊 เรียกสถิติ 8 โมง */
       if (scheduler.buildMorningStats && scheduler.broadcast) {
         await scheduler.broadcast(
           scheduler.buildMorningStats(),
@@ -271,6 +272,8 @@ Smile เซ็ต8
       return "ไม่พบระบบนี้";
   }
 }
+
+/* ===================================================== */
 
 function buildStatus(group) {
 
