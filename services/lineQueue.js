@@ -3,10 +3,11 @@ const { client } = require("../config/line");
 const queue = [];
 let running = false;
 
-const RATE_LIMIT = 3000; // ⭐ 3 วิ ต่อ 1 message
+const RATE_LIMIT = 3000; // 3 sec / message
+const RETRY_DELAY = 15000;
 
 function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(r => setTimeout(r, ms));
 }
 
 function isBusy() {
@@ -16,6 +17,7 @@ function isBusy() {
 async function processQueue() {
 
   if (running) return;
+
   running = true;
 
   console.log("🚀 queue start");
@@ -26,23 +28,31 @@ async function processQueue() {
 
     try {
 
-      await client.pushMessage(job.to, job.message);
+      console.log("📤 sending:", job.to);
+
+      queue.push(job.to, job.message);
 
       console.log("📨 sent:", job.to);
 
     } catch (err) {
 
+      console.error("Push error:", err.statusCode, err.message);
+
       if (err.statusCode === 429) {
 
-        console.log("⚠ 429 hit, waiting 15s...");
-        await wait(15000);
+        console.log("⚠ 429 hit → wait 15s");
+
+        await wait(RETRY_DELAY);
 
         queue.unshift(job);
+
         continue;
 
-      } else {
+      }
 
-        console.error("Push error:", err.message);
+      if (err.statusCode === 403) {
+
+        console.log("❌ bot not in group:", job.to);
 
       }
 

@@ -1,6 +1,5 @@
 const { getDB } = require("../../config/firebase");
 const { reply } = require("../../config/line");
-const { client } = require("../../config/line");
 const { v4: uuidv4 } = require("uuid");
 const queue = require("../lineQueue");
 

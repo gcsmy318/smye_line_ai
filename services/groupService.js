@@ -38,7 +38,9 @@ async function safeReply(event, message) {
 
     if (!message) return;
 
-    await client.replyMessage(event.replyToken, {
+    const to = event.source.groupId || event.source.userId;
+
+    queue.push(to, {
       type: "text",
       text: message
     });
