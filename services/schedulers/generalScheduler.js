@@ -137,8 +137,9 @@ async function broadcast(message, settingKey) {
 
   const groups = await db.collection("groups").get();
 
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
   let sentCount = 0;
-  let groupList = [];
 
   for (const g of groups.docs) {
 
@@ -149,47 +150,45 @@ async function broadcast(message, settingKey) {
     const settings = data.generalSettings || {};
     if (settings[settingKey] === false) continue;
 
-    try {
+    let sent = false;
 
-      await client.pushMessage(g.id, {
-        type: "text",
-        text: message
-      });
+    for (let retry = 0; retry < 5 && !sent; retry++) {
 
-      sentCount++;
-      groupList.push(g.id);
-
-      console.log("📤 General sent:", settingKey, g.id);
-
-      // 🔥 delay ป้องกัน 429
-      await new Promise(r => setTimeout(r, 350));
-
-    } catch (err) {
-
-      if (err.statusCode === 429) {
-
-        console.log("⚠ 429 hit, waiting...");
-
-        await new Promise(r => setTimeout(r, 2000));
+      try {
 
         await client.pushMessage(g.id, {
           type: "text",
           text: message
         });
 
-      } else {
+        sent = true;
+        sentCount++;
 
-        console.error("Push Error:", err.message);
+        console.log("📤 sent:", g.id);
+
+      } catch (err) {
+
+        if (err.statusCode === 429) {
+
+          console.log("⚠ 429 hit, waiting...");
+          await wait(5000);
+
+        } else {
+
+          console.log("❌ push fail:", g.id);
+
+        }
 
       }
 
     }
 
+    await wait(1000); // throttle กัน 429
+
   }
 
-  console.log(`📢 General: ${settingKey}
-ส่ง ${sentCount} กลุ่ม
-${groupList.join("\n")}`);
+  console.log("broadcast done:", sentCount);
+
 }
 
 /* =====================================================
