@@ -61,6 +61,19 @@ async function safeReply(event, message) {
 }
 
 /* ===================================================== */
+/* 🔧 ป้องกัน broadcast ค้าง */
+/* ===================================================== */
+
+function withTimeout(promise, ms = 10000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("broadcast timeout")), ms)
+    )
+  ]);
+}
+
+/* ===================================================== */
 
 async function handleMessage(event) {
 
@@ -90,7 +103,6 @@ async function handleMessage(event) {
         return;
       }
 
-      /* 🔧 กัน queue ยังทำงาน */
       if (queue.isBusy && queue.isBusy()) {
         console.log("⚠ queue still sending");
         return safeReply(event, "⏳ ระบบกำลังส่งอยู่ รอสักครู่");
@@ -98,7 +110,6 @@ async function handleMessage(event) {
 
       const now = Date.now();
 
-      /* 🔧 ถ้าเกิน 3 นาที ปลด lock */
       if (callApiRunning && now - callApiStart > 180000) {
         console.log("⚠ force reset callapi lock");
         callApiRunning = false;
@@ -119,27 +130,27 @@ async function handleMessage(event) {
         const wait = ms => new Promise(r => setTimeout(r, ms));
 
         console.log("📞 Manual callapi buildFriday12");
-        await scheduler.broadcast(scheduler.buildFriday12(), "fri12");
+        await withTimeout(scheduler.broadcast(scheduler.buildFriday12(), "fri12"));
         await wait(5000);
 
         console.log("📞 Manual callapi buildSunday9");
-        await scheduler.broadcast(scheduler.buildSunday9(), "sun9");
+        await withTimeout(scheduler.broadcast(scheduler.buildSunday9(), "sun9"));
         await wait(5000);
 
         console.log("📞 Manual callapi buildSunday1130");
-        await scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
+        await withTimeout(scheduler.broadcast(scheduler.buildSunday1130(), "sun1130"));
         await wait(5000);
 
         console.log("📞 Manual callapi buildMondayProgram");
-        await scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
+        await withTimeout(scheduler.broadcast(scheduler.buildMondayProgram(), "mon12"));
         await wait(5000);
 
         console.log("📞 Manual callapi buildSaturday15");
-        await scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
+        await withTimeout(scheduler.broadcast(scheduler.buildSaturday15(), "sat15"));
         await wait(5000);
 
         console.log("📞 Manual callapi buildMorningStats");
-        await scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
+        await withTimeout(scheduler.broadcast(scheduler.buildMorningStats(), "stats8"));
         await wait(5000);
 
         console.log("📞 Manual callapi handleReminders");
