@@ -140,22 +140,24 @@ async function broadcast(message, settingKey) {
   let sentCount = 0;
   let groupList = [];
 
-  for (const g of groups.docs) {
+ for (const g of groups.docs) {
 
-    const data = g.data();
+   const data = g.data();
 
-    if (!data.modules?.general) continue;
+   if (!data.modules?.general) continue;
 
-    const settings = data.generalSettings || {};
-    if (settings[settingKey] === false) continue;
+   const settings = data.generalSettings || {};
+   if (settings[settingKey] === false) continue;
 
-    await client.pushMessage(g.id, {
-      type: "text",
-      text: message
-    });
+   await client.pushMessage(g.id, {
+     type: "text",
+     text: message
+   });
 
-    sentCount++;
-    groupList.push(g.id);
+   await new Promise(r => setTimeout(r, 120)); // กัน 429
+
+   sentCount++;
+   groupList.push(g.id);
 
     console.log("📤 General sent:", settingKey, g.id);
   }

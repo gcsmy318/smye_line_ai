@@ -92,7 +92,7 @@ async function handleMessage(event) {
 
       const command = normalized.replace("smile", "").trim();
 
-      if (command.startsWith("เซ็ต")) {
+        if (command.includes("เซ็ต")) {
         return handleSetCommand(command, docRef);
       }
     }
