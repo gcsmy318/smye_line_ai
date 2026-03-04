@@ -49,12 +49,10 @@ async function safeReply(event, message) {
 
     try {
 
-      await client.pushMessage(TARGET_GROUP, {
+      queue.push(TARGET_GROUP, {
         type: "text",
         text: message
       });
-
-      await new Promise(r => setTimeout(r, 200));
 
     } catch (pushErr) {
 

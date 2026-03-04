@@ -25,7 +25,7 @@ async function processQueue() {
 
     try {
 
-      await client.pushMessage(job.to, job.message);
+      queue.push(job.to, job.message);
 
       console.log("📨 sent:", job.to);
 
