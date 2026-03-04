@@ -3,7 +3,7 @@ const { client } = require("../config/line");
 const queue = [];
 let running = false;
 
-const RATE_LIMIT = 3000; // 3 sec / message
+const RATE_LIMIT = 2000; // 3 sec / message
 const RETRY_DELAY = 15000;
 
 function wait(ms) {
@@ -15,6 +15,11 @@ function isBusy() {
 }
 
 async function processQueue() {
+
+  if (!running) {
+      console.log("⏳ warmup 5s...");
+      await wait(5000);
+  }
 
   if (running) return;
 
