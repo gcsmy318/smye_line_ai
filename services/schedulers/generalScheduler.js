@@ -171,36 +171,14 @@ async function broadcast(message, settingKey) {
 
       let sent = false;
 
-      for (let retry = 0; retry < 5 && !sent; retry++) {
+      queue.push(g.id, {
+        type: "text",
+        text: message
+      });
 
-        try {
+      sent = true;
 
-          queue.push(g.id, {
-            type: "text",
-            text: message
-          });
-
-          sent = true;
-
-        } catch (err) {
-
-          if (err.statusCode === 429) {
-
-            console.log("⚠ 429 hit, waiting...");
-            await wait(5000);
-
-          } else {
-
-            console.error("Broadcast error:", err.message);
-            break;
-
-          }
-
-        }
-
-      }
-
-      await wait(700); // ⭐ throttle ต่อ group
+      await wait(1500); // ⭐ throttle ต่อ group
 
       sentCount++;
       groupList.push(g.id);
