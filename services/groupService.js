@@ -38,14 +38,7 @@ async function safeReply(event, message) {
 
     if (!message) return;
 
-    const to = event?.source?.groupId || event?.source?.userId;
-
-    if (!to) {
-      console.log("⚠ safeReply skip: no target");
-      return;
-    }
-
-    queue.push(to, {
+    await client.replyMessage(event.replyToken, {
       type: "text",
       text: message
     });
@@ -54,19 +47,17 @@ async function safeReply(event, message) {
 
     console.log("⚠ reply fail → fallback push");
 
-    try {
+    const to = event?.source?.groupId || event?.source?.userId;
 
-      queue.push(TARGET_GROUP, {
-        type: "text",
-        text: message
-      });
+    if (!to) return;
 
-    } catch (pushErr) {
+    queue.push(to,{
+      type:"text",
+      text:message
+    });
 
-      console.error("Push Error:", pushErr.message);
-
-    }
   }
+
 }
 
 /* ===================================================== */
