@@ -76,11 +76,12 @@ async function handleMessage(event) {
     /* =====================================================
        🔥 CALL API MANUAL TRIGGER (ต้องมาก่อนทุกอย่าง)
     ===================================================== */
+      console.log("CALLAPI GROUP:", groupId);
+      console.log("TARGET GROUP:", TARGET_GROUP);
 
     if (normalized === "callapi") {
 
-      console.log("CALLAPI GROUP:", groupId);
-      console.log("TARGET GROUP:", TARGET_GROUP);
+
 
       if (groupId !== TARGET_GROUP) {
         console.log("❌ not master group");
