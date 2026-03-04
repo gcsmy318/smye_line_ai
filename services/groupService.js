@@ -6,7 +6,7 @@ const note = require("./modules/permanentNoteModule");
 const report = require("./modules/serviceReportModule");
 const registry = require("./modules/registryModule");
 const general = require("./modules/generalModule");
-const queue = require("../lineQueue");
+const queue = require("./lineQueue");
 /* 🔥 เพิ่มเพื่อรองรับ callapi */
 const scheduler = require("./schedulers/generalScheduler");
 /* ================================= */
