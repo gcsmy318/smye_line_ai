@@ -3,6 +3,9 @@ const { reply } = require("../../config/line");
 const { client } = require("../../config/line");
 const { v4: uuidv4 } = require("uuid");
 
+/* 🔧 lock กัน reminder ซ้อน */
+let reminderRunning = false;
+
 /* ================= TIME ================= */
 
 function getThaiNow() {
@@ -67,9 +70,6 @@ async function handle(event) {
   const groupId = event.source.groupId || event.source.userId;
   const db = getDB();
 
-  /* ===============================
-     เพิ่มแจ้งเตือน
-  ================================ */
   if (text.startsWith("แจ้งเตือน ")) {
 
     const raw = text.replace("แจ้งเตือน", "").trim();
@@ -97,9 +97,6 @@ async function handle(event) {
     return reply(event.replyToken, `✅ บันทึกแจ้งเตือนแล้ว (ID: ${id})`);
   }
 
-  /* ===============================
-     ดูแจ้งเตือน
-  ================================ */
   if (text === "ดูแจ้งเตือน") {
 
     const snapshot = await db.collection("reminders")
@@ -120,9 +117,6 @@ async function handle(event) {
     return reply(event.replyToken, msg);
   }
 
-  /* ===============================
-     ลบแจ้งเตือน
-  ================================ */
   if (text.startsWith("ลบแจ้งเตือน ")) {
 
     const id = text.replace("ลบแจ้งเตือน", "").trim();
@@ -149,6 +143,13 @@ async function handle(event) {
 /* ================= SCHEDULER FUNCTION ================= */
 
 async function handleReminders() {
+
+  if (reminderRunning) {
+    console.log("⚠ reminder already running");
+    return;
+  }
+
+  reminderRunning = true;
 
   try {
 
@@ -235,13 +236,15 @@ async function handleReminders() {
 
       }
 
-      await wait(400); // 🔧 throttle กัน 429
+      await wait(800); // ⭐ เพิ่ม throttle
 
     }
 
   } catch (err) {
     console.error("Reminder Error:", err);
   }
+
+  reminderRunning = false;
 }
 
 module.exports = { handle, handleReminders };
