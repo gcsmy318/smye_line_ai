@@ -19,12 +19,27 @@ function toThaiDateOnly(date) {
 }
 
 /* ===================================================== */
-/* 🔥 NEW: รองรับทุก format วันที่ */
+/* 🔥 เพิ่ม parser รองรับทุก format (ไม่กระทบของเดิม) */
 /* ===================================================== */
 
-function parseAnyDate(data) {
+function parseSlashDate(str) {
+  if (!str || typeof str !== "string") return null;
 
-  // 1️⃣ ถ้ามี targetDate (Firestore Timestamp)
+  const parts = str.split("/");
+  if (parts.length !== 3) return new Date(str);
+
+  let [day, month, year] = parts.map(Number);
+
+  if (year > 2500) {
+    year = year - 543; // รองรับ พ.ศ.
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+function resolveEventDate(data) {
+
+  // 1️⃣ ถ้ามี targetDate (Timestamp)
   if (data.targetDate) {
     if (typeof data.targetDate.toDate === "function") {
       return data.targetDate.toDate();
@@ -43,24 +58,6 @@ function parseAnyDate(data) {
   }
 
   return null;
-}
-
-function parseSlashDate(str) {
-  if (!str || typeof str !== "string") return null;
-
-  const parts = str.split("/");
-  if (parts.length !== 3) return new Date(str);
-
-  let [day, month, year] = parts.map(Number);
-
-  if (year < 2500 && year < 2100) {
-    // ค.ศ.
-  } else if (year > 2500) {
-    // พ.ศ. → ค.ศ.
-    year = year - 543;
-  }
-
-  return new Date(year, month - 1, day);
 }
 
 /* ================= CHAT COMMAND ================= */
@@ -173,7 +170,7 @@ async function handleReminders() {
       const data = doc.data();
       if (!data.groupId) return;
 
-      const eventDate = parseAnyDate(data);
+      const eventDate = resolveEventDate(data);
       if (!eventDate) return;
 
       const eventOnly = toThaiDateOnly(eventDate);
@@ -186,11 +183,20 @@ async function handleReminders() {
         groupMap[data.groupId] = [];
       }
 
-      if (diffDays === 0)
-        groupMap[data.groupId].push(`📌 วันนี้: ${data.title}`);
+       if (diffDays === 0)
+         groupMap[data.groupId].push(`📌 วันนี้: ${data.title}`);
 
-      if (diffDays === 3)
-        groupMap[data.groupId].push(`⏳ อีก 3 วัน: ${data.title}`);
+       // ล่วงหน้า 3 วัน (ของเดิม)
+       if (diffDays === 3)
+         groupMap[data.groupId].push(`⏳ อีก 3 วัน: ${data.title}`);
+
+       // 🔥 เพิ่มใหม่
+       if (diffDays === 2)
+         groupMap[data.groupId].push(`⏳ อีก 2 วัน: ${data.title}`);
+
+       if (diffDays === 1)
+         groupMap[data.groupId].push(`⏳ อีก 1 วัน: ${data.title}`);
+
     });
 
     for (const groupId in groupMap) {
