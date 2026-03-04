@@ -3,6 +3,7 @@ const { reply } = require("../../config/line");
 const { client } = require("../../config/line");
 const { v4: uuidv4 } = require("uuid");
 const queue = require("../lineQueue");
+
 /* 🔧 lock กัน reminder ซ้อน */
 let reminderRunning = false;
 
@@ -161,11 +162,16 @@ async function handleReminders() {
 
     const snapshot = await db.collection("reminders").get();
 
+    console.log("📥 reminders loaded:", snapshot.size);  // 🔧 เพิ่ม log
+
     const groupMap = {};
 
     snapshot.forEach(doc => {
 
       const data = doc.data();
+
+      console.log("🔍 checking reminder:", data.title); // 🔧 เพิ่ม log
+
       if (!data.groupId) return;
 
       const eventDate = resolveEventDate(data);
@@ -176,6 +182,8 @@ async function handleReminders() {
       const diffDays = Math.floor(
         (eventOnly - todayOnly) / (1000 * 60 * 60 * 24)
       );
+
+      console.log("📅 diffDays =", diffDays); // 🔧 เพิ่ม log
 
       if (!groupMap[data.groupId]) {
         groupMap[data.groupId] = [];
@@ -195,7 +203,10 @@ async function handleReminders() {
 
     });
 
-    if (Object.keys(groupMap).length === 0) return;
+    if (Object.keys(groupMap).length === 0) {
+      console.log("📭 no reminder today"); // 🔧 เพิ่ม log
+      return;
+    }
 
     const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -209,34 +220,14 @@ async function handleReminders() {
         msg += `${i + 1}. ${m}\n`;
       });
 
-      let sent = false;
+      console.log("📤 reminder send to:", groupId); // 🔧 เพิ่ม log
 
-      for (let retry = 0; retry < 5 && !sent; retry++) {
+      queue.push(groupId, {
+        type: "text",
+        text: msg
+      });
 
-        try {
-
-          queue.push(groupId, {
-            type: "text",
-            text: msg
-          });
-
-          sent = true;
-
-        } catch (err) {
-
-          if (err.statusCode === 429) {
-            console.log("⚠ 429 hit, waiting...");
-            await wait(5000);
-          } else {
-            console.error("Reminder push error:", err.message);
-            break;
-          }
-
-        }
-
-      }
-
-      await wait(800); // ⭐ เพิ่ม throttle
+      await wait(800);
 
     }
 
