@@ -4,7 +4,7 @@ const queue = [];
 let running = false;
 
 const RATE_LIMIT = 2000; // 3 sec / message
-const RETRY_DELAY = 15000;
+const RETRY_DELAY = 30000;
 
 function wait(ms) {
   return new Promise(r => setTimeout(r, ms));
@@ -16,16 +16,13 @@ function isBusy() {
 
 async function processQueue() {
 
-  if (!running) {
-      console.log("⏳ warmup 5s...");
-      await wait(5000);
-  }
+   if (running) return;
 
-  if (running) return;
+   running = true;
 
-  running = true;
-
-  console.log("🚀 queue start");
+   console.log("🚀 queue start");
+   console.log("⏳ warmup 5s...");
+   await wait(5000);
 
   while (queue.length > 0) {
 
