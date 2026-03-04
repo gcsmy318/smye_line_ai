@@ -3,8 +3,8 @@ const { client } = require("../config/line");
 const queue = [];
 let running = false;
 
-const RATE_LIMIT = 3000; // ⭐ 1.5 sec ต่อ message
-const RETRY_DELAY = 60000 ;
+const RATE_LIMIT = 3000;   // 3 วินาทีต่อข้อความ
+const RETRY_DELAY = 60000; // ถ้าโดน 429 รอ 60 วินาที
 
 function wait(ms) {
   return new Promise(r => setTimeout(r, ms));
@@ -21,14 +21,10 @@ async function processQueue() {
   running = true;
 
   console.log("🚀 queue start");
-  console.log("⏳ warmup 5s...");
-  await wait(5000);
 
   while (queue.length > 0) {
 
     const job = queue.shift();
-
-    if (!job) continue;
 
     try {
 
@@ -42,13 +38,9 @@ async function processQueue() {
 
       console.error("Push error:", err.statusCode, err.message);
 
-      /* ===============================
-         429 RATE LIMIT
-      ================================ */
-
       if (err.statusCode === 429) {
 
-        console.log("⚠ 429 hit → wait 15s");
+        console.log("⚠ 429 hit → wait 60s");
 
         await wait(RETRY_DELAY);
 
@@ -58,21 +50,11 @@ async function processQueue() {
 
       }
 
-      /* ===============================
-         BOT NOT IN GROUP
-      ================================ */
-
       if (err.statusCode === 403) {
 
         console.log("❌ bot not in group:", job.to);
 
       }
-
-      /* ===============================
-         OTHER ERROR
-      ================================ */
-
-      console.log("⚠ skip message:", job.to);
 
     }
 
@@ -97,9 +79,7 @@ function push(to, message) {
 
   console.log("📥 queue add:", to, "queueSize:", queue.length);
 
-  if (!running) {
-    processQueue();
-  }
+  processQueue();
 
 }
 
