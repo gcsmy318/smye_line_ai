@@ -42,17 +42,19 @@ async function processQueue() {
 
       console.error("Push error:", err.statusCode, err.message);
 
-      if (err.statusCode === 429) {
+        if (err.statusCode === 429) {
 
-        console.log("⚠ 429 hit → wait 60s");
+          console.log("⚠ 429 hit → wait 60s");
 
-        await wait(RETRY_DELAY);
+          await wait(RETRY_DELAY);
 
-        queue.unshift(job);
+          queue.unshift(job);
 
-        continue;
+          await wait(5000); // ⭐ เพิ่ม delay ก่อน retry
 
-      }
+          continue;
+
+        }
 
     }
 
