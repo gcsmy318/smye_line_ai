@@ -196,6 +196,8 @@ async function handleReminders() {
 
     if (Object.keys(groupMap).length === 0) return;
 
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+
     for (const groupId in groupMap) {
 
       if (!groupMap[groupId].length) continue;
@@ -206,10 +208,35 @@ async function handleReminders() {
         msg += `${i + 1}. ${m}\n`;
       });
 
-      await client.pushMessage(groupId, {
-        type: "text",
-        text: msg
-      });
+      let sent = false;
+
+      for (let retry = 0; retry < 5 && !sent; retry++) {
+
+        try {
+
+          await client.pushMessage(groupId, {
+            type: "text",
+            text: msg
+          });
+
+          sent = true;
+
+        } catch (err) {
+
+          if (err.statusCode === 429) {
+            console.log("⚠ 429 hit, waiting...");
+            await wait(5000);
+          } else {
+            console.error("Reminder push error:", err.message);
+            break;
+          }
+
+        }
+
+      }
+
+      await wait(400); // 🔧 throttle กัน 429
+
     }
 
   } catch (err) {

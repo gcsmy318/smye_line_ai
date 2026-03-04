@@ -13,6 +13,9 @@ const scheduler = require("./schedulers/generalScheduler");
 
 const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
 
+/* 🔧 เพิ่ม lock กัน callapi ซ้ำ */
+let callApiRunning = false;
+
 const DEFAULT_MODULES = {
   reminder: false,
   permanentNote: false,
@@ -74,54 +77,70 @@ async function handleMessage(event) {
     const normalized = text.toLowerCase();
 
     /* =====================================================
-       🔥 CALL API MANUAL TRIGGER (ต้องมาก่อนทุกอย่าง)
+       🔥 CALL API MANUAL TRIGGER
     ===================================================== */
-      console.log("CALLAPI GROUP:", groupId);
-      console.log("TARGET GROUP:", TARGET_GROUP);
+
+    console.log("CALLAPI GROUP:", groupId);
+    console.log("TARGET GROUP:", TARGET_GROUP);
 
     if (normalized === "callapi") {
-
-
 
       if (groupId !== TARGET_GROUP) {
         console.log("❌ not master group");
         return;
       }
 
-      console.log("📞 Manual callapi triggered");
+      /* 🔧 กัน callapi ซ้ำ */
+      if (callApiRunning) {
+        console.log("⚠ callapi already running");
+        return safeReply(event, "⏳ ระบบกำลังส่งอยู่ รอสักครู่");
+      }
 
-      const wait = ms => new Promise(r => setTimeout(r, ms));
+      callApiRunning = true;
 
-     console.log("📞 Manual callapi buildFriday12");
-      await scheduler.broadcast(scheduler.buildFriday12(), "fri12");
-      await wait(3000);
+      try {
 
-     console.log("📞 Manual callapi buildSunday9");
-      await scheduler.broadcast(scheduler.buildSunday9(), "sun9");
-      await wait(3000);
+        console.log("📞 Manual callapi triggered");
 
-     console.log("📞 Manual callapi buildSunday1130");
-      await scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
-      await wait(3000);
+        const wait = ms => new Promise(r => setTimeout(r, ms));
 
-     console.log("📞 Manual callapi buildMondayProgram");
-      await scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
-      await wait(3000);
+        console.log("📞 Manual callapi buildFriday12");
+        await scheduler.broadcast(scheduler.buildFriday12(), "fri12");
+        await wait(3000);
 
-     console.log("📞 Manual callapi buildSaturday15");
-      await scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
-      await wait(3000);
+        console.log("📞 Manual callapi buildSunday9");
+        await scheduler.broadcast(scheduler.buildSunday9(), "sun9");
+        await wait(3000);
 
-     console.log("📞 Manual callapi buildMorningStats");
-      await scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
-      await wait(3000);
+        console.log("📞 Manual callapi buildSunday1130");
+        await scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
+        await wait(3000);
 
-     console.log("📞 Manual callapi handleReminders");
-      await reminder.handleReminders();
+        console.log("📞 Manual callapi buildMondayProgram");
+        await scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
+        await wait(3000);
 
-      console.log("✅ CALLAPI DONE");
+        console.log("📞 Manual callapi buildSaturday15");
+        await scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
+        await wait(3000);
 
-      return safeReply(event, "✅ เรียก scheduler ทั้งหมดเรียบร้อยแล้ว");
+        console.log("📞 Manual callapi buildMorningStats");
+        await scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
+        await wait(3000);
+
+        console.log("📞 Manual callapi handleReminders");
+        await reminder.handleReminders();
+
+        console.log("✅ CALLAPI DONE");
+
+        return safeReply(event, "✅ เรียก scheduler ทั้งหมดเรียบร้อยแล้ว");
+
+      } finally {
+
+        /* 🔧 reset lock */
+        callApiRunning = false;
+
+      }
     }
 
     /* ===============================
