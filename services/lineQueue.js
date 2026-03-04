@@ -76,9 +76,7 @@ function push(to, message) {
   }
 
   queue.push({ to, message });
-
   console.log("📥 queue add:", to, "queueSize:", queue.length);
-
   processQueue();
 }
 
