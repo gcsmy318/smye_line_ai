@@ -25,7 +25,8 @@ async function processQueue() {
 
     try {
 
-      queue.push(job.to, job.message);
+      /* 🔧 ตรงนี้คือจุดที่ต้องแก้ */
+      await client.pushMessage(job.to, job.message);
 
       console.log("📨 sent:", job.to);
 
