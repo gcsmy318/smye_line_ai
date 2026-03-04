@@ -3,11 +3,12 @@ const { client } = require("../config/line");
 const queue = [];
 let running = false;
 
+const RATE_LIMIT = 3000; // ⭐ 3 วิ ต่อ 1 message
+
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/* 🔧 เพิ่มเพื่อให้ groupService เช็คว่า queue กำลังทำงานอยู่ไหม */
 function isBusy() {
   return running || queue.length > 0;
 }
@@ -25,7 +26,6 @@ async function processQueue() {
 
     try {
 
-      /* 🔧 ตรงนี้คือจุดที่ต้องแก้ */
       await client.pushMessage(job.to, job.message);
 
       console.log("📨 sent:", job.to);
@@ -34,8 +34,8 @@ async function processQueue() {
 
       if (err.statusCode === 429) {
 
-        console.log("⚠ 429 hit, waiting...");
-        await wait(8000);
+        console.log("⚠ 429 hit, waiting 15s...");
+        await wait(15000);
 
         queue.unshift(job);
         continue;
@@ -48,7 +48,7 @@ async function processQueue() {
 
     }
 
-    await wait(2000); // throttle
+    await wait(RATE_LIMIT);
 
   }
 
