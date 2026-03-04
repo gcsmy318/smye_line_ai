@@ -219,6 +219,7 @@ async function handleReminders() {
         msg += `${i + 1}. ${m}\n`;
       });
 
+
       console.log("📤 reminder send to:", groupId); // 🔧 เพิ่ม log
 
       queue.push(groupId, {
