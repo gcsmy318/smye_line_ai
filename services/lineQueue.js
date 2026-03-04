@@ -30,7 +30,7 @@ async function processQueue() {
 
       console.log("📤 sending:", job.to);
 
-      queue.push(job.to, job.message);
+      await client.pushMessage(job.to, job.message);  // ⭐ แก้ตรงนี้
 
       console.log("📨 sent:", job.to);
 
