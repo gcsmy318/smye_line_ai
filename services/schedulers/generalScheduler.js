@@ -179,7 +179,7 @@ function startGeneralScheduler() {
   }, { timezone: "Asia/Bangkok" });
 
   // 🔔 7:0 Reminder
-  cron.schedule("0 9 * * *", async () => {
+  cron.schedule("0 7 * * *", async () => {
     console.log("🔔 Trigger handleReminders()");
     await handleReminders();
    console.log("✅ handleReminders เสร็จแล้ว");

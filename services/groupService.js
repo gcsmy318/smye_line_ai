@@ -7,7 +7,10 @@ const report = require("./modules/serviceReportModule");
 const registry = require("./modules/registryModule");
 const general = require("./modules/generalModule");
 
-/* ===================================================== */
+/* 🔥 เพิ่มเพื่อรองรับ callapi */
+const { handleReminders } = require("./modules/reminderModule");
+const scheduler = require("./schedulers/reminderScheduler");
+/* ================================= */
 
 const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
 
@@ -93,6 +96,26 @@ async function handleMessage(event) {
       if (command.startsWith("เซ็ต")) {
         return handleSetCommand(command, docRef);
       }
+    }
+
+    /* ===================================================== */
+    /* 🔥 เพิ่ม callapi โดยไม่กระทบของเดิม */
+    /* ===================================================== */
+
+    if (normalized === "callapi") {
+
+      console.log("📞 Manual callapi triggered");
+
+      await handleReminders();
+
+      if (scheduler.buildMorningStats && scheduler.broadcast) {
+        await scheduler.broadcast(
+          scheduler.buildMorningStats(),
+          "stats8"
+        );
+      }
+
+      return safeReply("✅ เรียกแจ้งเตือนทั้งหมดเรียบร้อยแล้ว");
     }
 
     /* ===============================
@@ -248,7 +271,6 @@ Smile เซ็ต8
       return "ไม่พบระบบนี้";
   }
 }
-
 
 function buildStatus(group) {
 
