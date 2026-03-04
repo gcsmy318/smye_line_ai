@@ -3,7 +3,6 @@ const { getDB } = require("../../config/firebase");
 const { client } = require("../../config/line");
 const { handleReminders } = require("../modules/reminderModule");
 
-
 /* ===================================================== */
 
 const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
@@ -33,20 +32,39 @@ function formatThaiDate(date) {
 ===================================================== */
 
 function buildFriday12() {
-  return `🔔 แจ้งเตือนวันนี้ ซ้อมนมัสการ 16.30 นะครับ`;
+
+  const day = new Date().getDay();
+
+  if (day !== 5 && day !== 6) return null;
+
+  return `🔔 แจ้งเตือนวันเสาร์ ซ้อมนมัสการ 16.30 นะครับ`;
 }
 
 function buildSunday9() {
+
+  const day = new Date().getDay();
+
+  if (day !== 0) return null;
+
   return `🔔 แจ้งเตือนเช้าวันอาทิตย์
 hope channel มีไหมครับ ???
 เพลงตอบสนอง เพลงอะไรครับ ???`;
 }
 
 function buildSunday1130() {
+
+  const day = new Date().getDay();
+
+  if (day !== 0) return null;
+
   return `🎵 เตรียมก่อนเทศนา เพลงตอบสนอง เพลงอะไรครับ ???`;
 }
 
 function buildMondayProgram() {
+
+  const day = new Date().getDay();
+
+  if (day !== 1) return null;
 
   const sunday = getNextSunday();
   const dateStr = formatThaiDate(sunday);
@@ -89,10 +107,20 @@ BS :
 }
 
 function buildSaturday15() {
-  return `📣 แจ้งเตือน ชั้นสร้าง เจอกัน 18.00 น.`;
+
+  const day = new Date().getDay();
+
+  if (day !== 5 && day !== 6) return null;
+
+  return `📣 แจ้งเตือน ชั้นสร้าง วันเสาร์ เจอกัน 18.00 น.`;
 }
 
 function buildMorningStats() {
+
+  const day = new Date().getDay();
+
+  if (![1,3,5].includes(day)) return null;
+
   return `📢 รบกวนผู้นำทุกท่านส่งสถิติด้วยนะครับ ขอบคุณครับ`;
 }
 
@@ -101,6 +129,8 @@ function buildMorningStats() {
 ===================================================== */
 
 async function broadcast(message, settingKey) {
+
+  if (!message) return;
 
   const db = getDB();
   if (!db) return;
@@ -152,6 +182,7 @@ function startGeneralScheduler() {
   }, { timezone: "Asia/Bangkok" });
 
   cron.schedule("30 11 * * 0", async () => {
+    console.log("⏰ Trigger sun1130");
     await broadcast(buildSunday1130(), "sun1130");
   }, { timezone: "Asia/Bangkok" });
 
@@ -180,5 +211,10 @@ function startGeneralScheduler() {
 module.exports = {
   startGeneralScheduler,
   broadcast,
-  buildMorningStats
+  buildMorningStats,
+  buildFriday12,
+  buildSunday9,
+  buildSunday1130,
+  buildMondayProgram,
+  buildSaturday15
 };

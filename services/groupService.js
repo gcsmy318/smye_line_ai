@@ -101,23 +101,31 @@ async function handleMessage(event) {
     /* 🔥 CALL API MANUAL TRIGGER */
     /* ===================================================== */
 
-    if (normalized === "callapi") {
+  if (normalized === "callapi") {
 
-      console.log("📞 Manual callapi triggered");
+    /* อนุญาตเฉพาะ MASTER GROUP */
+    if (groupId !== TARGET_GROUP) return;
 
-      /* 🔔 เรียก reminder */
-      await reminder.handleReminders();
+    console.log("📞 Manual callapi triggered");
 
-      /* 📊 เรียกสถิติ 8 โมง */
-      if (scheduler.buildMorningStats && scheduler.broadcast) {
-        await scheduler.broadcast(
-          scheduler.buildMorningStats(),
-          "stats8"
-        );
-      }
+    /* เรียกทุก broadcast */
+    await scheduler.broadcast(scheduler.buildFriday12(), "fri12");
 
-      return safeReply("✅ เรียกแจ้งเตือนทั้งหมดเรียบร้อยแล้ว");
-    }
+    await scheduler.broadcast(scheduler.buildSunday9(), "sun9");
+
+    await scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
+
+    await scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
+
+    await scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
+
+    await scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
+
+    /* เรียก reminder */
+    await reminder.handleReminders();
+
+    return safeReply("✅ เรียก scheduler ทั้งหมดเรียบร้อยแล้ว");
+  }
 
     /* ===============================
        ROUTER
