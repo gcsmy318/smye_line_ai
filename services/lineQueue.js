@@ -3,7 +3,7 @@ const { client } = require("../config/line");
 const queue = [];
 let running = false;
 
-const RATE_LIMIT = 3000;   // 3 วินาทีต่อข้อความ
+const RATE_LIMIT = 5000;   // 3 วินาทีต่อข้อความ
 const RETRY_DELAY = 60000; // ถ้าโดน 429 รอ 60 วินาที
 
 function wait(ms) {
