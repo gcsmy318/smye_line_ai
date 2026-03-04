@@ -96,7 +96,7 @@ async function handleMessage(event) {
     console.log("CALLAPI GROUP:", groupId);
     console.log("TARGET GROUP:", TARGET_GROUP);
 
-    if (normalized === "callapi") {
+/*    if (normalized === "callapi") {
 
       if (groupId !== TARGET_GROUP) {
         console.log("❌ not master group");
@@ -165,8 +165,111 @@ async function handleMessage(event) {
         callApiRunning = false;
 
       }
+    }*/
+    /* =====================================================
+       CALL1
+    ===================================================== */
+
+    if (normalized === "call1") {
+
+      if (groupId !== TARGET_GROUP) return;
+
+      console.log("📞 call1 buildFriday12");
+
+      scheduler.broadcast(scheduler.buildFriday12(), "fri12");
+
+      return safeReply(event, "✅ call1 done");
     }
 
+    /* =====================================================
+       CALL2
+    ===================================================== */
+
+    if (normalized === "call2") {
+
+      if (groupId !== TARGET_GROUP) return;
+
+      console.log("📞 call2 buildSunday9");
+
+      scheduler.broadcast(scheduler.buildSunday9(), "sun9");
+
+      return safeReply(event, "✅ call2 done");
+    }
+
+    /* =====================================================
+       CALL3
+    ===================================================== */
+
+    if (normalized === "call3") {
+
+      if (groupId !== TARGET_GROUP) return;
+
+      console.log("📞 call3 buildSunday1130");
+
+      scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
+
+      return safeReply(event, "✅ call3 done");
+    }
+
+    /* =====================================================
+       CALL4
+    ===================================================== */
+
+    if (normalized === "call4") {
+
+      if (groupId !== TARGET_GROUP) return;
+
+      console.log("📞 call4 buildMondayProgram");
+
+      scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
+
+      return safeReply(event, "✅ call4 done");
+    }
+
+    /* =====================================================
+       CALL5
+    ===================================================== */
+
+    if (normalized === "call5") {
+
+      if (groupId !== TARGET_GROUP) return;
+
+      console.log("📞 call5 buildSaturday15");
+
+      scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
+
+      return safeReply(event, "✅ call5 done");
+    }
+
+    /* =====================================================
+       CALL6
+    ===================================================== */
+
+    if (normalized === "call6") {
+
+      if (groupId !== TARGET_GROUP) return;
+
+      console.log("📞 call6 buildMorningStats");
+
+      scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
+
+      return safeReply(event, "✅ call6 done");
+    }
+
+    /* =====================================================
+       CALL7
+    ===================================================== */
+
+    if (normalized === "call7") {
+
+      if (groupId !== TARGET_GROUP) return;
+
+      console.log("📞 call7 handleReminders");
+
+      await reminder.handleReminders();
+
+      return safeReply(event, "✅ reminder done");
+    }
     /* ===============================
        HELP
     ================================ */
