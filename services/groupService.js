@@ -131,27 +131,27 @@ async function handleMessage(event) {
 
         console.log("📞 Manual callapi buildFriday12");
         scheduler.broadcast(scheduler.buildFriday12(), "fri12");
-        await wait(5000);
+        await wait(500);
 
         console.log("📞 Manual callapi buildSunday9");
         scheduler.broadcast(scheduler.buildSunday9(), "sun9");
-        await wait(5000);
+        await wait(500);
 
         console.log("📞 Manual callapi buildSunday1130");
         scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
-        await wait(5000);
+        await wait(500);
 
         console.log("📞 Manual callapi buildMondayProgram");
         scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
-        await wait(5000);
+        await wait(500);
 
         console.log("📞 Manual callapi buildSaturday15");
         scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
-        await wait(5000);
+        await wait(500);
 
         console.log("📞 Manual callapi buildMorningStats");
         scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
-        await wait(5000);
+        await wait(500);
 
         console.log("📞 Manual callapi handleReminders");
         await reminder.handleReminders();
