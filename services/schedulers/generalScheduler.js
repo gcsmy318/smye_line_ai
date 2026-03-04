@@ -139,8 +139,6 @@ async function broadcast(message, settingKey) {
 
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
-  let sentCount = 0;
-
   for (const g of groups.docs) {
 
     const data = g.data();
@@ -162,9 +160,6 @@ async function broadcast(message, settingKey) {
         });
 
         sent = true;
-        sentCount++;
-
-        console.log("📤 sent:", g.id);
 
       } catch (err) {
 
@@ -175,17 +170,17 @@ async function broadcast(message, settingKey) {
 
         } else {
 
-          console.log("❌ push fail:", g.id);
+          console.error("Broadcast error:", err.message);
+          break;
 
         }
+
       }
+
     }
 
-    await wait(700); // throttle กัน 429
-
+    await wait(400); // throttle กัน 429
   }
-
-  console.log("broadcast done:", sentCount);
 
 }
 
