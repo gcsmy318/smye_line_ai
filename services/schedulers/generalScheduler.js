@@ -196,8 +196,8 @@ function startGeneralScheduler() {
     await broadcast(buildMorningStats(), "stats8");
   }, { timezone: "Asia/Bangkok" });
 
-  // 🔔 7:42 Reminder
-  cron.schedule("42 7 * * *", async () => {
+  // 🔔 7 Reminder
+  cron.schedule("0 7 * * *", async () => {
     await logToMaster("🔔 Trigger handleReminders()");
     await handleReminders();
     await logToMaster("✅ handleReminders เสร็จแล้ว");
