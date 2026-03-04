@@ -2,7 +2,7 @@ const cron = require("node-cron");
 const { getDB } = require("../../config/firebase");
 const { client } = require("../../config/line");
 const { handleReminders } = require("../modules/reminderModule");
-
+const queue = require("../lineQueue");
 /* ===================================================== */
 
 const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
@@ -169,7 +169,7 @@ async function broadcast(message, settingKey) {
 
         try {
 
-          await client.pushMessage(g.id, {
+          queue.push(g.id, {
             type: "text",
             text: message
           });
