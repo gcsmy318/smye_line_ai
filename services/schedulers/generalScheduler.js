@@ -151,12 +151,6 @@ async function broadcast(message, settingKey) {
 
     const wait = ms => new Promise(r => setTimeout(r, ms));
 
-    /* 🔥 เพิ่มตรงนี้ */
-    while (queue.isBusy()) {
-      console.log("⏳ waiting queue...");
-      await wait(2000);
-    }
-
     let sentCount = 0;
     let groupList = [];
 
@@ -169,21 +163,12 @@ async function broadcast(message, settingKey) {
       const settings = data.generalSettings || {};
       if (settings[settingKey] === false) continue;
 
-      let sent = false;
+      queue.push(g.id, {
+        type: "text",
+        text: message
+      });
 
-    while (queue.isBusy()) {
-      console.log("⏳ queue busy...");
-      await wait(2000);
-    }
-
-    queue.push(g.id, {
-      type: "text",
-      text: message
-    });
-
-      sent = true;
-
-      await wait(1500); // ⭐ throttle ต่อ group
+      await wait(1500);
 
       sentCount++;
       groupList.push(g.id);
