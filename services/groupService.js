@@ -22,20 +22,37 @@ const DEFAULT_MODULES = {
 };
 
 /* ===================================================== */
+/* SAFE REPLY (แก้ 429) */
+/* ===================================================== */
 
-async function safeReply(message) {
+async function safeReply(event, message) {
   try {
+
     if (!message) return;
 
-    await client.pushMessage(TARGET_GROUP, {
+    await client.replyMessage(event.replyToken, {
       type: "text",
       text: message
     });
 
-    await new Promise(r => setTimeout(r, 150));
-
   } catch (err) {
-    console.error("Push Error:", err.message);
+
+    console.log("⚠ reply fail → fallback push");
+
+    try {
+
+      await client.pushMessage(TARGET_GROUP, {
+        type: "text",
+        text: message
+      });
+
+      await new Promise(r => setTimeout(r, 200));
+
+    } catch (pushErr) {
+
+      console.error("Push Error:", pushErr.message);
+
+    }
   }
 }
 
@@ -59,16 +76,14 @@ async function handleMessage(event) {
        HELP
     ================================ */
 
-    const helpMatch = normalized.match(/^help\s*([3-8])$/i);
+    const helpMatch = normalized.match(/^help\s*([3-8])$/);
 
     if (helpMatch) {
-      await safeReply(buildModuleDetail(helpMatch[1]));
-      return true;
+      return safeReply(event, buildModuleDetail(helpMatch[1]));
     }
 
     if (isHelpCommand(normalized)) {
-      await safeReply(buildMainMenu());
-      return true;
+      return safeReply(event, buildMainMenu());
     }
 
     /* ===============================
@@ -98,7 +113,7 @@ async function handleMessage(event) {
       const command = text.replace(/smile/i, "").trim();
 
       if (command.includes("เซ็ต")) {
-        return handleSetCommand(command, docRef);
+        return handleSetCommand(event, command, docRef);
       }
     }
 
@@ -112,32 +127,33 @@ async function handleMessage(event) {
 
       console.log("📞 Manual callapi triggered");
 
-    const wait = ms => new Promise(r => setTimeout(r, ms));
+      const wait = ms => new Promise(r => setTimeout(r, ms));
 
-    await scheduler.broadcast(scheduler.buildFriday12(), "fri12");
-    await wait(1000);
+      await scheduler.broadcast(scheduler.buildFriday12(), "fri12");
+      await wait(1000);
 
-    await scheduler.broadcast(scheduler.buildSunday9(), "sun9");
-    await wait(1000);
+      await scheduler.broadcast(scheduler.buildSunday9(), "sun9");
+      await wait(1000);
 
-    await scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
-    await wait(1000);
+      await scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
+      await wait(1000);
 
-    await scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
-    await wait(1000);
+      await scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
+      await wait(1000);
 
-    await scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
-    await wait(1000);
+      await scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
+      await wait(1000);
 
-    await scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
-await wait(1000);
+      await scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
+      await wait(1000);
+
       await reminder.handleReminders();
 
       console.log("CALLAPI RUN");
       console.log("groupId:", groupId);
       console.log("today:", new Date().getDay());
 
-      return safeReply("✅ เรียก scheduler ทั้งหมดเรียบร้อยแล้ว");
+      return safeReply(event, "✅ เรียก scheduler ทั้งหมดเรียบร้อยแล้ว");
     }
 
     /* ===============================
@@ -157,7 +173,7 @@ await wait(1000);
 
 /* ===================================================== */
 
-async function handleSetCommand(text, docRef) {
+async function handleSetCommand(event, text, docRef) {
 
   const setMap = {
     "เซ็ต3": "reminder",
@@ -171,14 +187,14 @@ async function handleSetCommand(text, docRef) {
   const key = Object.keys(setMap).find(k => text.includes(k));
 
   if (!key) {
-    return safeReply("ไม่พบคำสั่งเซ็ต");
+    return safeReply(event, "ไม่พบคำสั่งเซ็ต");
   }
 
   const moduleName = setMap[key];
 
   if (moduleName === "status") {
     const group = (await docRef.get()).data() || {};
-    return safeReply(buildStatus(group));
+    return safeReply(event, buildStatus(group));
   }
 
   await docRef.set({
@@ -190,7 +206,7 @@ async function handleSetCommand(text, docRef) {
   let msg = `✅ เปิดระบบ ${moduleName} เรียบร้อยแล้ว\n\n`;
   msg += buildStatus(updated);
 
-  return safeReply(msg);
+  return safeReply(event, msg);
 }
 
 /* ===================================================== */
