@@ -176,45 +176,45 @@ function startGeneralScheduler() {
 
   // ศุกร์ 12:00
   cron.schedule("0 12 * * 5", async () => {
-    await logToMaster("⏰ Trigger fri12");
+ //   await logToMaster("⏰ Trigger fri12");
     await broadcast(buildFriday12(), "fri12");
   }, { timezone: "Asia/Bangkok" });
 
   // อาทิตย์ 09:00
   cron.schedule("0 9 * * 0", async () => {
-    await logToMaster("⏰ Trigger sun9");
+  //  await logToMaster("⏰ Trigger sun9");
     await broadcast(buildSunday9(), "sun9");
   }, { timezone: "Asia/Bangkok" });
 
   // อาทิตย์ 11:30
   cron.schedule("30 11 * * 0", async () => {
-    await logToMaster("⏰ Trigger sun1130");
+   // await logToMaster("⏰ Trigger sun1130");
     await broadcast(buildSunday1130(), "sun1130");
   }, { timezone: "Asia/Bangkok" });
 
   // จันทร์ 12:00
   cron.schedule("0 12 * * 1", async () => {
-    await logToMaster("⏰ Trigger mon12");
+  //  await logToMaster("⏰ Trigger mon12");
     await broadcast(buildMondayProgram(), "mon12");
   }, { timezone: "Asia/Bangkok" });
 
   // เสาร์ 15:00
   cron.schedule("0 15 * * 6", async () => {
-    await logToMaster("⏰ Trigger sat15");
+  //  await logToMaster("⏰ Trigger sat15");
     await broadcast(buildSaturday15(), "sat15");
   }, { timezone: "Asia/Bangkok" });
 
   // 8 โมงเช้า
   cron.schedule("0 8 * * 0,1,2,5", async () => {
-    await logToMaster("⏰ Trigger stats8");
+  //  await logToMaster("⏰ Trigger stats8");
     await broadcast(buildMorningStats(), "stats8");
   }, { timezone: "Asia/Bangkok" });
 
   // 🔔 7:55 Reminder
-  cron.schedule("2 8 * * *", async () => {
-    await logToMaster("🔔 Trigger handleReminders()");
+  cron.schedule("15 8 * * *", async () => {
+  //  await logToMaster("🔔 Trigger handleReminders()");
     await handleReminders();
-    await logToMaster("✅ handleReminders เสร็จแล้ว");
+  //  await logToMaster("✅ handleReminders เสร็จแล้ว");
   }, { timezone: "Asia/Bangkok" });
 
 }
