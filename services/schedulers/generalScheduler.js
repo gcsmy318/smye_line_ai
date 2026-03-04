@@ -140,29 +140,56 @@ async function broadcast(message, settingKey) {
   let sentCount = 0;
   let groupList = [];
 
- for (const g of groups.docs) {
+  for (const g of groups.docs) {
 
-   const data = g.data();
+    const data = g.data();
 
-   if (!data.modules?.general) continue;
+    if (!data.modules?.general) continue;
 
-   const settings = data.generalSettings || {};
-   if (settings[settingKey] === false) continue;
+    const settings = data.generalSettings || {};
+    if (settings[settingKey] === false) continue;
 
-   await client.pushMessage(g.id, {
-     type: "text",
-     text: message
-   });
+    try {
 
-   await new Promise(r => setTimeout(r, 120)); // กัน 429
+      await client.pushMessage(g.id, {
+        type: "text",
+        text: message
+      });
 
-   sentCount++;
-   groupList.push(g.id);
+      sentCount++;
+      groupList.push(g.id);
 
-    console.log("📤 General sent:", settingKey, g.id);
+      console.log("📤 General sent:", settingKey, g.id);
+
+      // 🔥 delay ป้องกัน 429
+      await new Promise(r => setTimeout(r, 350));
+
+    } catch (err) {
+
+      if (err.statusCode === 429) {
+
+        console.log("⚠ 429 hit, waiting...");
+
+        await new Promise(r => setTimeout(r, 2000));
+
+        await client.pushMessage(g.id, {
+          type: "text",
+          text: message
+        });
+
+      } else {
+
+        console.error("Push Error:", err.message);
+
+      }
+
+    }
+
   }
 
-  console.log(`📢 General: ${settingKey}\nส่ง ${sentCount} กลุ่ม\n${groupList.join("\n")}`);
+  console.log(`📢 General: ${settingKey}
+ส่ง ${sentCount} กลุ่ม
+${groupList.join("\n")}`);
 }
 
 /* =====================================================
