@@ -7,6 +7,9 @@ const { handleReminders } = require("../modules/reminderModule");
 
 const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
 
+/* 🔧 กัน broadcast ซ้อน */
+let broadcastRunning = false;
+
 /* =====================================================
    UTIL
 ===================================================== */
@@ -132,51 +135,80 @@ async function broadcast(message, settingKey) {
 
   if (!message) return;
 
-  const db = getDB();
-  if (!db) return;
-
-  const groups = await db.collection("groups").get();
-
-  const wait = ms => new Promise(r => setTimeout(r, ms));
-
-for (const g of groups.docs) {
-
-  const data = g.data();
-
-  if (!data.modules?.general) continue;
-
-  const settings = data.generalSettings || {};
-  if (settings[settingKey] === false) continue;
-
-  let sent = false;
-
-  for (let retry = 0; retry < 5 && !sent; retry++) {
-
-    try {
-
-      await client.pushMessage(g.id, {
-        type: "text",
-        text: message
-      });
-
-      sent = true;
-
-    } catch (err) {
-
-      if (err.statusCode === 429) {
-        console.log("⚠ 429 hit, waiting...");
-        await wait(3000);
-      } else {
-        console.error("Broadcast error:", err.message);
-        break;
-      }
-
-    }
-
+  if (broadcastRunning) {
+    console.log("⚠ broadcast already running");
+    return;
   }
 
-  await wait(1000);
-}
+  broadcastRunning = true;
+
+  try {
+
+    const db = getDB();
+    if (!db) return;
+
+    const groups = await db.collection("groups").get();
+
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+
+    let sentCount = 0;
+    let groupList = [];
+
+    for (const g of groups.docs) {
+
+      const data = g.data();
+
+      if (!data.modules?.general) continue;
+
+      const settings = data.generalSettings || {};
+      if (settings[settingKey] === false) continue;
+
+      let sent = false;
+
+      for (let retry = 0; retry < 5 && !sent; retry++) {
+
+        try {
+
+          await client.pushMessage(g.id, {
+            type: "text",
+            text: message
+          });
+
+          sent = true;
+
+        } catch (err) {
+
+          if (err.statusCode === 429) {
+
+            console.log("⚠ 429 hit, waiting...");
+            await wait(5000);
+
+          } else {
+
+            console.error("Broadcast error:", err.message);
+            break;
+
+          }
+
+        }
+
+      }
+
+      await wait(700); // ⭐ throttle ต่อ group
+
+      sentCount++;
+      groupList.push(g.id);
+
+      console.log("📤 General sent:", settingKey, g.id);
+    }
+
+    console.log(`📢 General: ${settingKey}\nส่ง ${sentCount} กลุ่ม\n${groupList.join("\n")}`);
+
+  } finally {
+
+    broadcastRunning = false;
+
+  }
 
 }
 
