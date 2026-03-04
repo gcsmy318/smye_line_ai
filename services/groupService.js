@@ -22,10 +22,11 @@ const DEFAULT_MODULES = {
 };
 
 /* ===================================================== */
-/* SAFE REPLY (แก้ 429) */
+/* SAFE REPLY */
 /* ===================================================== */
 
 async function safeReply(event, message) {
+
   try {
 
     if (!message) return;
@@ -72,6 +73,49 @@ async function handleMessage(event) {
 
     const normalized = text.toLowerCase();
 
+    /* =====================================================
+       🔥 CALL API MANUAL TRIGGER (ต้องมาก่อนทุกอย่าง)
+    ===================================================== */
+
+    if (normalized === "callapi") {
+
+      console.log("CALLAPI GROUP:", groupId);
+      console.log("TARGET GROUP:", TARGET_GROUP);
+
+      if (groupId !== TARGET_GROUP) {
+        console.log("❌ not master group");
+        return;
+      }
+
+      console.log("📞 Manual callapi triggered");
+
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+
+      await scheduler.broadcast(scheduler.buildFriday12(), "fri12");
+      await wait(3000);
+
+      await scheduler.broadcast(scheduler.buildSunday9(), "sun9");
+      await wait(3000);
+
+      await scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
+      await wait(3000);
+
+      await scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
+      await wait(3000);
+
+      await scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
+      await wait(3000);
+
+      await scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
+      await wait(3000);
+
+      await reminder.handleReminders();
+
+      console.log("✅ CALLAPI DONE");
+
+      return safeReply(event, "✅ เรียก scheduler ทั้งหมดเรียบร้อยแล้ว");
+    }
+
     /* ===============================
        HELP
     ================================ */
@@ -95,10 +139,12 @@ async function handleMessage(event) {
     const doc = await docRef.get();
 
     if (!doc.exists) {
+
       await docRef.set({
         type: "general",
         modules: { ...DEFAULT_MODULES }
       });
+
     }
 
     const group = (await docRef.get()).data() || {};
@@ -117,45 +163,6 @@ async function handleMessage(event) {
       }
     }
 
-    /* =====================================================
-       🔥 CALL API MANUAL TRIGGER
-    ===================================================== */
-
-    if (normalized === "callapi") {
-
-      if (groupId !== TARGET_GROUP) return;
-
-      console.log("📞 Manual callapi triggered");
-
-      const wait = ms => new Promise(r => setTimeout(r, ms));
-
-      await scheduler.broadcast(scheduler.buildFriday12(), "fri12");
-      await wait(1000);
-
-      await scheduler.broadcast(scheduler.buildSunday9(), "sun9");
-      await wait(1000);
-
-      await scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
-      await wait(1000);
-
-      await scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
-      await wait(1000);
-
-      await scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
-      await wait(1000);
-
-      await scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
-      await wait(1000);
-
-      await reminder.handleReminders();
-
-      console.log("CALLAPI RUN");
-      console.log("groupId:", groupId);
-      console.log("today:", new Date().getDay());
-
-      return safeReply(event, "✅ เรียก scheduler ทั้งหมดเรียบร้อยแล้ว");
-    }
-
     /* ===============================
        ROUTER
     ================================ */
@@ -167,7 +174,9 @@ async function handleMessage(event) {
     try { if (modules.general && await general.handle(event, group)) return; } catch(e){ console.error(e); }
 
   } catch (error) {
+
     console.error("Fatal Error:", error);
+
   }
 }
 
@@ -193,8 +202,10 @@ async function handleSetCommand(event, text, docRef) {
   const moduleName = setMap[key];
 
   if (moduleName === "status") {
+
     const group = (await docRef.get()).data() || {};
     return safeReply(event, buildStatus(group));
+
   }
 
   await docRef.set({
@@ -212,6 +223,7 @@ async function handleSetCommand(event, text, docRef) {
 /* ===================================================== */
 
 function buildMainMenu() {
+
   return `
 🤖 Spirit AI เมนูหลัก
 
@@ -226,6 +238,7 @@ Smile เซ็ต8  → ดูสถานะระบบ
 📖 ดูวิธีใช้งาน:
 help 3 - help 8
 `;
+
 }
 
 /* ===================================================== */
@@ -318,17 +331,22 @@ Smile เซ็ต8
 function buildStatus(group) {
 
   let msg = "📊 สถานะระบบ\n\n";
+
   const modules = group.modules || {};
 
   Object.keys(DEFAULT_MODULES).forEach(k => {
+
     msg += modules[k] ? `✔ ${k}\n` : `✖ ${k}\n`;
+
   });
 
   return msg;
 }
 
 function isHelpCommand(text) {
+
   return ["help","menu","เมนู","คำสั่ง","setup"].includes(text);
+
 }
 
 module.exports = { handleMessage };
