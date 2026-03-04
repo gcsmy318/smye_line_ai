@@ -12,13 +12,42 @@ const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
 /* ===================================================== */
 
 async function logToMaster(message) {
+
   try {
+
+    if (!message) return;
+
+    // กันยิงพร้อมกันเร็วเกินไป
+    await new Promise(r => setTimeout(r, 300));
+
     await client.pushMessage(TARGET_GROUP, {
       type: "text",
       text: `📡 SYSTEM LOG\n${message}`
     });
+
   } catch (err) {
-    console.error("Master Log Error:", err.message);
+
+    // 🔥 กัน 429 (Too Many Requests)
+    if (err.response && err.response.status === 429) {
+
+      console.warn("⚠️ LINE Rate Limited (429) - retrying once...");
+
+      try {
+
+        await new Promise(r => setTimeout(r, 1000));
+
+        await client.pushMessage(TARGET_GROUP, {
+          type: "text",
+          text: `📡 SYSTEM LOG (Retry)\n${message}`
+        });
+
+      } catch (retryErr) {
+        console.error("❌ Master Log Retry Failed:", retryErr.message);
+      }
+
+    } else {
+      console.error("❌ Master Log Error:", err.message);
+    }
   }
 }
 
@@ -197,7 +226,7 @@ function startGeneralScheduler() {
   }, { timezone: "Asia/Bangkok" });
 
   // 🔔 7 Reminder
-  cron.schedule("50 7 * * *", async () => {
+  cron.schedule("51 7 * * *", async () => {
     await logToMaster("🔔 Trigger handleReminders()");
     await handleReminders();
     await logToMaster("✅ handleReminders เสร็จแล้ว");
