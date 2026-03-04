@@ -149,8 +149,6 @@ async function broadcast(message, settingKey) {
 
     const groups = await db.collection("groups").get();
 
-    const wait = ms => new Promise(r => setTimeout(r, ms));
-
     let sentCount = 0;
     let groupList = [];
 
@@ -168,15 +166,18 @@ async function broadcast(message, settingKey) {
         text: message
       });
 
-      await wait(1500);
-
       sentCount++;
       groupList.push(g.id);
 
       console.log("📤 General sent:", settingKey, g.id);
+
     }
 
     console.log(`📢 General: ${settingKey}\nส่ง ${sentCount} กลุ่ม\n${groupList.join("\n")}`);
+
+  } catch (err) {
+
+    console.error("Broadcast error:", err);
 
   } finally {
 
@@ -185,7 +186,6 @@ async function broadcast(message, settingKey) {
   }
 
 }
-
 /* =====================================================
    START SCHEDULER
 ===================================================== */
