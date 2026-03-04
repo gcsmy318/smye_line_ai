@@ -22,7 +22,7 @@ async function processQueue() {
 
   console.log("🚀 queue start");
 
-  await wait(8000); // ⭐ เพิ่มเวลารอก่อนส่งครั้งแรก (เดิม 5s)
+  await wait(15000); // ⭐ เพิ่มเวลารอก่อนส่งครั้งแรก (เดิม 5s)
 
   while (queue.length > 0) {
 
