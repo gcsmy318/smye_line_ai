@@ -6,9 +6,12 @@ const note = require("./modules/permanentNoteModule");
 const report = require("./modules/serviceReportModule");
 const registry = require("./modules/registryModule");
 const general = require("./modules/generalModule");
-const queue = require("./lineQueue");
+
 /* 🔥 เพิ่มเพื่อรองรับ callapi */
 const scheduler = require("./schedulers/generalScheduler");
+
+/* 🔥 ใช้ queue */
+const queue = require("./lineQueue");
 /* ================================= */
 
 const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
@@ -46,7 +49,7 @@ async function safeReply(event, message) {
 
     try {
 
-      queue.push(TARGET_GROUP, {
+      await client.pushMessage(TARGET_GROUP, {
         type: "text",
         text: message
       });
@@ -60,6 +63,7 @@ async function safeReply(event, message) {
     }
   }
 }
+
 
 /* ===================================================== */
 
@@ -91,12 +95,13 @@ async function handleMessage(event) {
         return;
       }
 
-      const now = Date.now();
-
-      /* 🔧 reset lock ถ้า process restart */
-      if (!callApiStart) {
-        callApiRunning = false;
+      /* 🔧 กัน queue ยังทำงาน */
+      if (queue.isBusy && queue.isBusy()) {
+        console.log("⚠ queue still sending");
+        return safeReply(event, "⏳ ระบบกำลังส่งอยู่ รอสักครู่");
       }
+
+      const now = Date.now();
 
       /* 🔧 ถ้าเกิน 3 นาที ปลด lock */
       if (callApiRunning && now - callApiStart > 180000) {
@@ -120,27 +125,27 @@ async function handleMessage(event) {
 
         console.log("📞 Manual callapi buildFriday12");
         await scheduler.broadcast(scheduler.buildFriday12(), "fri12");
-        await wait(1000);
+        await wait(3000);
 
         console.log("📞 Manual callapi buildSunday9");
         await scheduler.broadcast(scheduler.buildSunday9(), "sun9");
-        await wait(1000);
+        await wait(3000);
 
         console.log("📞 Manual callapi buildSunday1130");
         await scheduler.broadcast(scheduler.buildSunday1130(), "sun1130");
-        await wait(1000);
+        await wait(3000);
 
         console.log("📞 Manual callapi buildMondayProgram");
         await scheduler.broadcast(scheduler.buildMondayProgram(), "mon12");
-        await wait(1000);
+        await wait(3000);
 
         console.log("📞 Manual callapi buildSaturday15");
         await scheduler.broadcast(scheduler.buildSaturday15(), "sat15");
-        await wait(1000);
+        await wait(3000);
 
         console.log("📞 Manual callapi buildMorningStats");
         await scheduler.broadcast(scheduler.buildMorningStats(), "stats8");
-        await wait(1000);
+        await wait(3000);
 
         console.log("📞 Manual callapi handleReminders");
         await reminder.handleReminders();
