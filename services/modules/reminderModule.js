@@ -31,7 +31,7 @@ function parseSlashDate(str) {
   let [day, month, year] = parts.map(Number);
 
   if (year > 2500) {
-    year = year - 543; // รองรับ พ.ศ.
+    year = year - 543;
   }
 
   return new Date(year, month - 1, day);
@@ -39,7 +39,6 @@ function parseSlashDate(str) {
 
 function resolveEventDate(data) {
 
-  // 1️⃣ ถ้ามี targetDate (Timestamp)
   if (data.targetDate) {
     if (typeof data.targetDate.toDate === "function") {
       return data.targetDate.toDate();
@@ -47,12 +46,10 @@ function resolveEventDate(data) {
     return new Date(data.targetDate);
   }
 
-  // 2️⃣ ถ้ามี originalDate
   if (data.originalDate) {
     return parseSlashDate(data.originalDate);
   }
 
-  // 3️⃣ ถ้ามี date
   if (data.date) {
     return parseSlashDate(data.date);
   }
@@ -175,29 +172,29 @@ async function handleReminders() {
 
       const eventOnly = toThaiDateOnly(eventDate);
 
-        const diffDays = Math.floor(
-          (eventOnly - todayOnly) / (1000 * 60 * 60 * 24)
-        );
+      const diffDays = Math.floor(
+        (eventOnly - todayOnly) / (1000 * 60 * 60 * 24)
+      );
 
       if (!groupMap[data.groupId]) {
         groupMap[data.groupId] = [];
       }
 
-       if (diffDays === 0)
-         groupMap[data.groupId].push(`📌 วันนี้: ${data.title}`);
+      if (diffDays === 0)
+        groupMap[data.groupId].push(`📌 วันนี้: ${data.title}`);
 
-       // ล่วงหน้า 3 วัน (ของเดิม)
-       if (diffDays === 3)
-         groupMap[data.groupId].push(`⏳ อีก 3 วัน: ${data.title}`);
+      if (diffDays === 3)
+        groupMap[data.groupId].push(`⏳ อีก 3 วัน: ${data.title}`);
 
-       // 🔥 เพิ่มใหม่
-       if (diffDays === 2)
-         groupMap[data.groupId].push(`⏳ อีก 2 วัน: ${data.title}`);
+      if (diffDays === 2)
+        groupMap[data.groupId].push(`⏳ อีก 2 วัน: ${data.title}`);
 
-       if (diffDays === 1)
-         groupMap[data.groupId].push(`⏳ อีก 1 วัน: ${data.title}`);
+      if (diffDays === 1)
+        groupMap[data.groupId].push(`⏳ อีก 1 วัน: ${data.title}`);
 
     });
+
+    if (Object.keys(groupMap).length === 0) return;
 
     for (const groupId in groupMap) {
 

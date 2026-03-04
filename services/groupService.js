@@ -124,6 +124,10 @@ async function handleMessage(event) {
     /* เรียก reminder */
     await reminder.handleReminders();
 
+    console.log("CALLAPI RUN");
+    console.log("groupId:", groupId);
+    console.log("today:", new Date().getDay());
+
     return safeReply("✅ เรียก scheduler ทั้งหมดเรียบร้อยแล้ว");
   }
 
