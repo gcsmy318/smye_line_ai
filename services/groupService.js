@@ -15,6 +15,7 @@ const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
 
 /* 🔧 เพิ่ม lock กัน callapi ซ้ำ */
 let callApiRunning = false;
+let callApiStart = 0;
 
 const DEFAULT_MODULES = {
   reminder: false,
@@ -90,13 +91,21 @@ async function handleMessage(event) {
         return;
       }
 
-      /* 🔧 กัน callapi ซ้ำ */
-      if (callApiRunning) {
-        console.log("⚠ callapi already running");
-        return safeReply(event, "⏳ ระบบกำลังส่งอยู่ รอสักครู่");
-      }
+        const now = Date.now();
 
-      callApiRunning = true;
+        /* 🔧 ถ้าเกิน 3 นาที ปลด lock */
+        if (callApiRunning && now - callApiStart > 180000) {
+          console.log("⚠ force reset callapi lock");
+          callApiRunning = false;
+        }
+
+        if (callApiRunning) {
+          console.log("⚠ callapi already running");
+          return safeReply(event, "⏳ ระบบกำลังส่งอยู่ รอสักครู่");
+        }
+
+        callApiRunning = true;
+        callApiStart = now;
 
       try {
 
