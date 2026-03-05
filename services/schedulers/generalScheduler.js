@@ -237,7 +237,6 @@ module.exports = {
   buildMorningStats,
   buildFriday12,
   buildSunday9,
-  buildSunday1130,
   buildMondayProgram,
   buildSaturday15
 };
