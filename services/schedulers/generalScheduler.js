@@ -219,7 +219,7 @@ function startGeneralScheduler() {
     await broadcast(buildSaturday15(), "sat15");
   }, { timezone: "Asia/Bangkok" });
 
-  cron.schedule("0 8 * * 0,1,4,5", async () => {
+  cron.schedule("15 8 * * 0,1,4,5", async () => {
     console.log("⏰ Trigger stats8");
     await broadcast(buildMorningStats(), "stats8");
   }, { timezone: "Asia/Bangkok" });
