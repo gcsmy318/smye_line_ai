@@ -35,20 +35,10 @@ function formatThaiDate(date) {
 ===================================================== */
 
 function buildFriday12() {
-
-  const day = new Date().getDay();
-
-  if (day !== 5 && day !== 6) return null;
-
   return `🔔 แจ้งเตือนวันเสาร์ ซ้อมนมัสการ 16.30 นะครับ`;
 }
 
 function buildSunday9() {
-
-  const day = new Date().getDay();
-
-  if (day !== 0) return null;
-
   return `🔔 แจ้งเตือนเช้าวันอาทิตย์
 hope channel มีไหมครับ ???
 เพลงตอบสนอง เพลงอะไรครับ ???`;
@@ -66,9 +56,6 @@ hope channel มีไหมครับ ???
 function buildMondayProgram() {
 
   const day = new Date().getDay();
-
-  if (day !== 1) return null;
-
   const sunday = getNextSunday();
   const dateStr = formatThaiDate(sunday);
 
@@ -110,20 +97,10 @@ BS :
 }
 
 function buildSaturday15() {
-
-  const day = new Date().getDay();
-
-  if (day !== 5 && day !== 6) return null;
-
   return `📣 แจ้งเตือน ชั้นสร้าง วันเสาร์ เจอกัน 18.00 น.`;
 }
 
 function buildMorningStats() {
-
-  const day = new Date().getDay();
-
-  if (![1,3,5].includes(day)) return null;
-
   return `📢 รบกวนผู้นำทุกท่านส่งสถิติด้วยนะครับ ขอบคุณครับ`;
 }
 
@@ -219,7 +196,7 @@ function startGeneralScheduler() {
     await broadcast(buildSaturday15(), "sat15");
   }, { timezone: "Asia/Bangkok" });
 
-  cron.schedule("15 8 * * 0,1,4,5", async () => {
+  cron.schedule("45 8 * * 0,1,4,5", async () => {
     console.log("⏰ Trigger stats8");
     await broadcast(buildMorningStats(), "stats8");
   }, { timezone: "Asia/Bangkok" });
