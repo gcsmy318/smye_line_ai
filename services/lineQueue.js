@@ -69,17 +69,26 @@ async function processQueue() {
 }
 
 function push(to, message) {
-
   if (!to) return;
 
-  queue.push({ to, message });
+  // 🔍 ตรวจสอบว่ามี job เดียวกันใน queue แล้วหรือยัง
+  const exists = queue.some(job =>
+    job.to === to &&
+    job.message.type === message.type &&
+    job.message.text === message.text // เพิ่มเฉพาะกรณีข้อความเป็น text
+  );
 
+  if (exists) {
+    console.log("⚠ duplicate job ignored:", to);
+    return;
+  }
+
+  queue.push({ to, message });
   console.log("📥 queue add:", to, "queueSize:", queue.length);
 
   if (!running) {
     processQueue();
   }
-
 }
 
 module.exports = { push, isBusy };

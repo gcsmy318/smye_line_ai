@@ -54,14 +54,14 @@ hope channel มีไหมครับ ???
 เพลงตอบสนอง เพลงอะไรครับ ???`;
 }
 
-function buildSunday1130() {
+/*function buildSunday1130() {
 
   const day = new Date().getDay();
 
   if (day !== 0) return null;
 
   return `🎵 เตรียมก่อนเทศนา เพลงตอบสนอง เพลงอะไรครับ ???`;
-}
+}*/
 
 function buildMondayProgram() {
 
@@ -204,10 +204,10 @@ function startGeneralScheduler() {
     await broadcast(buildSunday9(), "sun9");
   }, { timezone: "Asia/Bangkok" });
 
-  cron.schedule("30 11 * * 0", async () => {
+/*  cron.schedule("30 11 * * 0", async () => {
     console.log("⏰ Trigger sun1130");
     await broadcast(buildSunday1130(), "sun1130");
-  }, { timezone: "Asia/Bangkok" });
+  }, { timezone: "Asia/Bangkok" });*/
 
   cron.schedule("0 12 * * 1", async () => {
     console.log("⏰ Trigger mon12");
@@ -219,7 +219,7 @@ function startGeneralScheduler() {
     await broadcast(buildSaturday15(), "sat15");
   }, { timezone: "Asia/Bangkok" });
 
-  cron.schedule("0 8 * * 0,1,2,5", async () => {
+  cron.schedule("0 8 * * 0,1,4,5", async () => {
     console.log("⏰ Trigger stats8");
     await broadcast(buildMorningStats(), "stats8");
   }, { timezone: "Asia/Bangkok" });
