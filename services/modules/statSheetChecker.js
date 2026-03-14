@@ -1,14 +1,14 @@
 const { google } = require("googleapis");
 
 /* =========================================
-   ๅ
+   ผู้รับผิดชอบ
 ========================================= */
 
-const provinces = {
+const provinceOwners = {
   "พัทลุง": ["อ.เก๋", "พี่รัตน์"],
   "สงขลา": ["อ.ดิว", "พี่รุ้ง", "พี่อัลฟ่า"],
   "สตูล": ["อ.เช้าตรู่", "อ.เดช"],
-  "นรา": ["อ.ดอน"],
+  "นราธิวาส": ["อ.ดอน"],
   "ยะลา": ["พี่ทิม"],
   "ปัตตานี": ["พี่ฝน"]
 };
@@ -23,91 +23,131 @@ function getThaiNow() {
   );
 }
 
-function formatThaiDate(date) {
-  return date.toLocaleDateString("th-TH");
+/* =========================================
+   DATE PARSER
+========================================= */
+
+function parseSheetDate(text) {
+
+  if (!text) return null;
+
+  const parts = text.split("/");
+
+  if (parts.length !== 2) return null;
+
+  const day = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+
+  const year = getThaiNow().getFullYear();
+
+  return new Date(year, month - 1, day);
+
 }
 
 /* =========================================
-   MAIN CHECK
+   MAIN
 ========================================= */
 
 async function checkStatSheet() {
 
-  try {
+  const auth = new google.auth.GoogleAuth({
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+  });
 
-	const auth = new google.auth.GoogleAuth({
-	  credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
-	  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-	});
+  const sheets = google.sheets({
+    version: "v4",
+    auth
+  });
 
-    const sheets = google.sheets({
-      version: "v4",
-      auth
-    });
+  const spreadsheetId = "1mjRq5Nj5DCQwZTPrqyMdC0Fge-V3OF-EsQOkiW9vKIQ";
 
-    const spreadsheetId = "1mjRq5Nj5DCQwZTPrqyMdC0Fge-V3OF-EsQOkiW9vKIQ";
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: "Sheet1!A1:Z200"
+  });
 
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: "Sheet1!A1:Z500"
-    });
+  const rows = res.data.values || [];
 
-    const rows = res.data.values || [];
+  const today = getThaiNow();
 
-    const today = formatThaiDate(getThaiNow());
+  const result = {};
 
-    const missingProvince = {};
-    const provinceList = [];
+  /* ===============================
+     อ่านหัวตารางวันที่
+  ================================ */
 
-    for (let i = 1; i < rows.length; i++) {
+  const header = rows[0];
 
-      const row = rows[i];
+  const dateColumns = [];
 
-      const date = row[0];
-      const name = row[1];
-      const status = row[2];
+  for (let c = 3; c < header.length; c++) {
 
-      if (!date || !name) continue;
+    const date = parseSheetDate(header[c]);
 
-      if (date === today && status === "x") {
+    if (!date) continue;
 
-        for (const province in provinces) {
+    if (date <= today) {
 
-          if (provinces[province].includes(name)) {
+      dateColumns.push({
+        col: c,
+        label: header[c]
+      });
 
-            if (!missingProvince[province]) {
-              missingProvince[province] = [];
-            }
+    }
 
-            missingProvince[province].push(name);
+  }
 
-            if (!provinceList.includes(province)) {
-              provinceList.push(province);
-            }
+  /* ===============================
+     ตรวจทุกจังหวัด
+  ================================ */
 
-          }
+  for (let r = 1; r < rows.length; r++) {
 
+    const row = rows[r];
+
+    const province = row[0];
+
+    if (!province) continue;
+
+    for (const d of dateColumns) {
+
+      const value = row[d.col];
+
+      if (!value) continue;
+
+      if (value.toString().toUpperCase() === "X") {
+
+        if (!result[province]) {
+          result[province] = [];
         }
+
+        result[province].push(d.label);
 
       }
 
     }
 
-    return {
-      provinces: provinceList,
-      detail: missingProvince
-    };
+  }
 
-  } catch (err) {
+  /* ===============================
+     แปลงผลลัพธ์
+  ================================ */
 
-    console.error("checkStatSheet error:", err);
+  const detail = {};
 
-    return {
-      provinces: [],
-      detail: {}
+  for (const province in result) {
+
+    const owners = provinceOwners[province] || [];
+
+    detail[province] = {
+      owners,
+      dates: result[province]
     };
 
   }
+
+  return detail;
 
 }
 

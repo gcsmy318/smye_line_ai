@@ -12,6 +12,9 @@ const { startStatSheetScheduler  } = require("./services/schedulers/statSheetSch
 
 const app = express();
 
+/* 🔥 กัน LINE webhook event ซ้ำ */
+const processedEvents = new Set();
+
 /* =====================================================
    🚀 START SERVER
 ===================================================== */
@@ -51,7 +54,27 @@ app.post(
       const events = req.body.events || [];
 
      for (const event of events) {
+
+       /* 🔥 กัน event ซ้ำ */
+       const eventId = event.webhookEventId;
+
+       if (eventId) {
+
+         if (processedEvents.has(eventId)) {
+           console.log("⚠ duplicate event ignored:", eventId);
+           continue;
+         }
+
+         processedEvents.add(eventId);
+
+         setTimeout(() => {
+           processedEvents.delete(eventId);
+         }, 60000);
+
+       }
+
        await handleMessage(event);
+
      }
 
       res.sendStatus(200);

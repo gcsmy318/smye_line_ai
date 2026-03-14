@@ -2,6 +2,9 @@ const { getDB } = require("../../config/firebase");
 const { reply } = require("../../config/line");
 const admin = require("firebase-admin");
 
+/* 🔥 กันบันทึกซ้ำ */
+const recentReports = new Map();
+
 /* =====================================================
    UTIL: สร้าง key สัปดาห์ (เริ่มวันอาทิตย์)
 ===================================================== */
@@ -55,6 +58,27 @@ async function handle(event) {
 
     const content = text.replace("รายงานการรับใช้", "").trim();
     if (!content) return false;
+
+    /* 🔥 ตรวจ duplicate */
+    const duplicateKey = `${userId}_${content}_${weekKey}`;
+    const now = Date.now();
+
+    if (recentReports.has(duplicateKey)) {
+
+      const last = recentReports.get(duplicateKey);
+
+      if (now - last < 5000) {
+        console.log("⚠ duplicate report ignored");
+        return true;
+      }
+
+    }
+
+    recentReports.set(duplicateKey, now);
+
+    setTimeout(() => {
+      recentReports.delete(duplicateKey);
+    }, 10000);
 
     await docRef.set({
       reports: admin.firestore.FieldValue.arrayUnion({
