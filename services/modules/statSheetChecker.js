@@ -77,7 +77,7 @@ async function checkStatSheet() {
      อ่านหัวตารางวันที่
   ================================ */
 
-  const header = rows[0];
+  const header = rows[2];
 
   const dateColumns = [];
 
@@ -102,33 +102,38 @@ async function checkStatSheet() {
      ตรวจทุกจังหวัด
   ================================ */
 
-  for (let r = 1; r < rows.length; r++) {
+console.log("📊 STAT CHECK");
 
-    const row = rows[r];
+for (let r = 3; r < rows.length; r++) {
 
-    const province = row[0];
+  const row = rows[r];
+  const province = row[0];
 
-    if (!province) continue;
+  if (!province) continue;
 
-    for (const d of dateColumns) {
+  console.log("\n" + province);
 
-      const value = row[d.col];
+  for (const d of dateColumns) {
 
-      if (!value) continue;
+    const value = row[d.col];
 
-      if (value.toString().toUpperCase() === "X") {
+    console.log(`${d.label} = ${value || "-"}`);
 
-        if (!result[province]) {
-          result[province] = [];
-        }
+    if (!value) continue;
 
-        result[province].push(d.label);
+    if (value.toString().toUpperCase() === "X") {
 
+      if (!result[province]) {
+        result[province] = [];
       }
+
+      result[province].push(d.label);
 
     }
 
   }
+
+}
 
   /* ===============================
      แปลงผลลัพธ์
