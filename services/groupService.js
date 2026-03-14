@@ -12,9 +12,13 @@ const scheduler = require("./schedulers/generalScheduler");
 
 /* 🔥 ใช้ queue */
 const queue = require("./lineQueue");
+
+/* 🔥 STAT MODULE */
+const { checkStatSheet } = require("./modules/statSheetChecker");
 /* ================================= */
 
 const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
+const STAT_GROUP = "C094d3624ddb25a8158cd5b992d58bdaa";
 
 /* 🔧 เพิ่ม lock กัน callapi ซ้ำ */
 let callApiRunning = false;
@@ -88,6 +92,54 @@ async function handleMessage(event) {
     if (!text) return;
 
     const normalized = text.toLowerCase();
+
+    /* ===============================
+       STAT COMMAND
+    ================================ */
+
+    if (normalized === "สถิติ") {
+
+      if (groupId !== STAT_GROUP) return;
+
+      try {
+
+        const result = await checkStatSheet();
+
+        let msg;
+
+        if (!result || result.provinces.length === 0) {
+
+          msg = "✅ วันนี้ทุกจังหวัดส่งสถิติแล้ว";
+
+        } else {
+
+          msg = "⚠️ จังหวัดที่ยังไม่ส่งสถิติ\n\n";
+
+          for (const province in result.detail) {
+
+            msg += province + "\n";
+
+            result.detail[province].forEach(name => {
+              msg += "- " + name + "\n";
+            });
+
+            msg += "\n";
+
+          }
+
+        }
+
+        return safeReply(event, msg);
+
+      } catch (err) {
+
+        console.error("stat command error", err);
+
+        return safeReply(event, "❌ ตรวจสอบสถิติไม่สำเร็จ");
+
+      }
+
+    }
 
     /* =====================================================
        🔥 CALL API MANUAL TRIGGER

@@ -56,3 +56,8 @@ Thumbs.db
 dist/
 build/
 coverage/
+
+
+# Google service account
+service-account.json
+*.service-account.json
