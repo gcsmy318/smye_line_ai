@@ -62,12 +62,18 @@ async function checkStatSheet() {
 
   const spreadsheetId = "1mjRq5Nj5DCQwZTPrqyMdC0Fge-V3OF-EsQOkiW9vKIQ";
 
+  /* 🔧 แก้ชื่อ sheet */
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: "Sheet1!A1:Z200"
+    range: "'ใต้ 5'!A1:Z200"
   });
 
   const rows = res.data.values || [];
+
+  if (rows.length === 0) {
+    console.log("⚠ Sheet empty");
+    return {};
+  }
 
   const today = getThaiNow();
 
@@ -78,6 +84,11 @@ async function checkStatSheet() {
   ================================ */
 
   const header = rows[2];
+
+  if (!header) {
+    console.log("⚠ header row not found");
+    return {};
+  }
 
   const dateColumns = [];
 
@@ -102,38 +113,38 @@ async function checkStatSheet() {
      ตรวจทุกจังหวัด
   ================================ */
 
-console.log("📊 STAT CHECK");
+  console.log("📊 STAT CHECK");
 
-for (let r = 3; r < rows.length; r++) {
+  for (let r = 3; r < rows.length; r++) {
 
-  const row = rows[r];
-  const province = row[0];
+    const row = rows[r];
+    const province = row[0];
 
-  if (!province) continue;
+    if (!province) continue;
 
-  console.log("\n" + province);
+    console.log("\n" + province);
 
-  for (const d of dateColumns) {
+    for (const d of dateColumns) {
 
-    const value = row[d.col];
+      const value = row[d.col];
 
-    console.log(`${d.label} = ${value || "-"}`);
+      console.log(`${d.label} = ${value || "-"}`);
 
-    if (!value) continue;
+      if (!value) continue;
 
-    if (value.toString().toUpperCase() === "X") {
+      if (value.toString().toUpperCase() === "X") {
 
-      if (!result[province]) {
-        result[province] = [];
+        if (!result[province]) {
+          result[province] = [];
+        }
+
+        result[province].push(d.label);
+
       }
-
-      result[province].push(d.label);
 
     }
 
   }
-
-}
 
   /* ===============================
      แปลงผลลัพธ์
