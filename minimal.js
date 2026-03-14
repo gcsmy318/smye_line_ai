@@ -8,7 +8,7 @@ const { middleware } = require("@line/bot-sdk");
 const { initFirebase } = require("./config/firebase");
 const { handleMessage } = require("./services/groupService");
 const { startGeneralScheduler } = require("./services/schedulers/generalScheduler");
-const { startStatSheetScheduler } = require("./services/schedulers/statSheetScheduler");
+const { startStatSheetScheduler  } = require("./services/schedulers/statSheetScheduler");
 
 const app = express();
 
@@ -25,7 +25,7 @@ console.log("✅ Firebase initialized");
 /* 🔥 2️⃣ Start General Scheduler */
 try {
   startGeneralScheduler();
-  startStatSheetScheduler();
+  startStatSheetScheduler ();
   console.log("⏰ General Scheduler started");
 } catch (err) {
   console.error("❌ Scheduler Error:", err);

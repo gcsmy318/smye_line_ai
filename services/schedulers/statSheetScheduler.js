@@ -8,7 +8,7 @@ const STAT_GROUP = "C094d3624ddb25a8158cd5b992d58bdaa";
    START SCHEDULER
 ========================================= */
 
-function startStatScheduler() {
+function startStatSheetScheduler() {
 
   cron.schedule("0 8 * * 0,1,3,5", async () => {
 
@@ -55,5 +55,5 @@ function startStatScheduler() {
 }
 
 module.exports = {
-  startStatScheduler
+  startStatSheetScheduler 
 };
