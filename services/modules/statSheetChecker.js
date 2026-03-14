@@ -13,19 +13,11 @@ const provinceOwners = {
   "ปัตตานี": ["พี่ฝน"]
 };
 
-/* =========================================
-   TIME
-========================================= */
-
 function getThaiNow() {
   return new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
   );
 }
-
-/* =========================================
-   DATE PARSER
-========================================= */
 
 function parseSheetDate(text) {
 
@@ -42,10 +34,6 @@ function parseSheetDate(text) {
 
   return new Date(year, month - 1, day);
 }
-
-/* =========================================
-   MAIN
-========================================= */
 
 async function checkStatSheet() {
 
@@ -68,15 +56,13 @@ async function checkStatSheet() {
 
   const rows = res.data.values || [];
 
-  console.log("================================");
   console.log("📊 STAT CHECK DEBUG");
   console.log("TOTAL ROWS =", rows.length);
-  console.log("================================");
 
   const today = getThaiNow();
+
   const result = {};
 
-  /* header วันที่อยู่แถว 3 */
   const header = rows[2];
 
   const dateColumns = [];
@@ -100,8 +86,6 @@ async function checkStatSheet() {
 
   console.log("DATE COLUMNS =", dateColumns);
 
-  /* จังหวัดเริ่มแถว 4 */
-
   for (let r = 3; r < rows.length; r++) {
 
     const row = rows[r];
@@ -119,7 +103,9 @@ async function checkStatSheet() {
 
       if (!value) continue;
 
-      if (value.toUpperCase() === "X") {
+      const clean = value.toString().trim().toUpperCase();
+
+      if (clean === "X") {
 
         if (!result[province]) {
           result[province] = [];
@@ -134,21 +120,25 @@ async function checkStatSheet() {
   }
 
   const detail = {};
+  const provinces = [];
 
   for (const province in result) {
 
+    provinces.push(province);
+
     const owners = provinceOwners[province] || [];
 
-    detail[province] = {
-      owners,
-      dates: result[province]
-    };
+    detail[province] = owners;
 
   }
 
   console.log("RESULT =", detail);
 
-  return detail;
+  return {
+    provinces,
+    detail
+  };
+
 }
 
 module.exports = {
