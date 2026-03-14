@@ -123,16 +123,19 @@ async function checkStatSheet() {
 
   }
 
-  const provinces = [];
-  const detail = {};
+const provinces = [];
+const detail = {};
 
-  for (const province in result) {
+for (const province in result) {
 
-    provinces.push(province);
+  provinces.push(province);
 
-    detail[province] = provinceOwners[province] || [];
+  detail[province] = {
+    owners: provinceOwners[province] || [],
+    dates: result[province]
+  };
 
-  }
+}
 
   console.log("RESULT =", detail);
 

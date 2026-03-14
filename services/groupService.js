@@ -115,17 +115,20 @@ async function handleMessage(event) {
 
           msg = "⚠️ จังหวัดที่ยังไม่ส่งสถิติ\n\n";
 
-          for (const province in result.detail) {
+         for (const province in result.detail) {
 
-            msg += province + "\n";
+           const owners = result.detail[province].owners;
+           const dates = result.detail[province].dates;
 
-            result.detail[province].forEach(name => {
-              msg += "- " + name + "\n";
-            });
+           msg += `${province} (${owners.join(" ")})\n`;
 
-            msg += "\n";
+           dates.forEach(d => {
+             msg += `- ${d}\n`;
+           });
 
-          }
+           msg += "\n";
+
+         }
 
         }
 
