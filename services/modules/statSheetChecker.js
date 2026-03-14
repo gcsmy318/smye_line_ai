@@ -62,37 +62,61 @@ async function checkStatSheet() {
 
   const spreadsheetId = "1mjRq5Nj5DCQwZTPrqyMdC0Fge-V3OF-EsQOkiW9vKIQ";
 
-  /* 🔧 แก้ชื่อ sheet */
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: "'ใต้ 5'!A1:Z200"
+    range: "'ใต้ 5'"
   });
 
   const rows = res.data.values || [];
 
-  if (rows.length === 0) {
-    console.log("⚠ Sheet empty");
-    return {};
-  }
+  console.log("================================");
+  console.log("📊 STAT SHEET DEBUG");
+  console.log("ROWS =", rows.length);
+  console.log("ROW0 =", rows[0]);
+  console.log("ROW1 =", rows[1]);
+  console.log("ROW2 =", rows[2]);
+  console.log("ROW3 =", rows[3]);
+  console.log("================================");
 
   const today = getThaiNow();
 
   const result = {};
 
   /* ===============================
-     อ่านหัวตารางวันที่
+     หา header วันที่อัตโนมัติ
   ================================ */
 
-  const header = rows[2];
+  let headerRowIndex = -1;
 
-  if (!header) {
-    console.log("⚠ header row not found");
+  for (let i = 0; i < rows.length; i++) {
+
+    const row = rows[i];
+
+    for (const cell of row) {
+
+      if (cell && cell.includes("/") && cell.length <= 5) {
+        headerRowIndex = i;
+        break;
+      }
+
+    }
+
+    if (headerRowIndex !== -1) break;
+
+  }
+
+  if (headerRowIndex === -1) {
+    console.log("❌ ไม่พบ header วันที่");
     return {};
   }
 
+  console.log("HEADER ROW =", headerRowIndex);
+
+  const header = rows[headerRowIndex];
+
   const dateColumns = [];
 
-  for (let c = 3; c < header.length; c++) {
+  for (let c = 0; c < header.length; c++) {
 
     const date = parseSheetDate(header[c]);
 
@@ -109,13 +133,15 @@ async function checkStatSheet() {
 
   }
 
+  console.log("DATE COLUMNS =", dateColumns);
+
   /* ===============================
      ตรวจทุกจังหวัด
   ================================ */
 
   console.log("📊 STAT CHECK");
 
-  for (let r = 3; r < rows.length; r++) {
+  for (let r = headerRowIndex + 1; r < rows.length; r++) {
 
     const row = rows[r];
     const province = row[0];
@@ -162,6 +188,8 @@ async function checkStatSheet() {
     };
 
   }
+
+  console.log("RESULT =", detail);
 
   return detail;
 
