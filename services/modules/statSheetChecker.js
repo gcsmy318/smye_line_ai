@@ -41,7 +41,6 @@ function parseSheetDate(text) {
   const year = getThaiNow().getFullYear();
 
   return new Date(year, month - 1, day);
-
 }
 
 /* =========================================
@@ -64,59 +63,25 @@ async function checkStatSheet() {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: "'ใต้ 5'"
+    range: "A1:Z200"
   });
 
   const rows = res.data.values || [];
 
   console.log("================================");
-  console.log("📊 STAT SHEET DEBUG");
-  console.log("ROWS =", rows.length);
-  console.log("ROW0 =", rows[0]);
-  console.log("ROW1 =", rows[1]);
-  console.log("ROW2 =", rows[2]);
-  console.log("ROW3 =", rows[3]);
+  console.log("📊 STAT CHECK DEBUG");
+  console.log("TOTAL ROWS =", rows.length);
   console.log("================================");
 
   const today = getThaiNow();
-
   const result = {};
 
-  /* ===============================
-     หา header วันที่อัตโนมัติ
-  ================================ */
-
-  let headerRowIndex = -1;
-
-  for (let i = 0; i < rows.length; i++) {
-
-    const row = rows[i];
-
-    for (const cell of row) {
-
-      if (cell && cell.includes("/") && cell.length <= 5) {
-        headerRowIndex = i;
-        break;
-      }
-
-    }
-
-    if (headerRowIndex !== -1) break;
-
-  }
-
-  if (headerRowIndex === -1) {
-    console.log("❌ ไม่พบ header วันที่");
-    return {};
-  }
-
-  console.log("HEADER ROW =", headerRowIndex);
-
-  const header = rows[headerRowIndex];
+  /* header วันที่อยู่แถว 3 */
+  const header = rows[2];
 
   const dateColumns = [];
 
-  for (let c = 0; c < header.length; c++) {
+  for (let c = 3; c < header.length; c++) {
 
     const date = parseSheetDate(header[c]);
 
@@ -135,20 +100,16 @@ async function checkStatSheet() {
 
   console.log("DATE COLUMNS =", dateColumns);
 
-  /* ===============================
-     ตรวจทุกจังหวัด
-  ================================ */
+  /* จังหวัดเริ่มแถว 4 */
 
-  console.log("📊 STAT CHECK");
-
-  for (let r = headerRowIndex + 1; r < rows.length; r++) {
+  for (let r = 3; r < rows.length; r++) {
 
     const row = rows[r];
     const province = row[0];
 
     if (!province) continue;
 
-    console.log("\n" + province);
+    console.log("\nจังหวัด:", province);
 
     for (const d of dateColumns) {
 
@@ -158,7 +119,7 @@ async function checkStatSheet() {
 
       if (!value) continue;
 
-      if (value.toString().toUpperCase() === "X") {
+      if (value.toUpperCase() === "X") {
 
         if (!result[province]) {
           result[province] = [];
@@ -171,10 +132,6 @@ async function checkStatSheet() {
     }
 
   }
-
-  /* ===============================
-     แปลงผลลัพธ์
-  ================================ */
 
   const detail = {};
 
@@ -192,7 +149,6 @@ async function checkStatSheet() {
   console.log("RESULT =", detail);
 
   return detail;
-
 }
 
 module.exports = {
