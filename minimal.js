@@ -25,7 +25,7 @@ console.log("✅ Firebase initialized");
 /* 🔥 2️⃣ Start General Scheduler */
 try {
   startGeneralScheduler();
-  startStatScheduler();
+  startStatSheetScheduler();
   console.log("⏰ General Scheduler started");
 } catch (err) {
   console.error("❌ Scheduler Error:", err);
