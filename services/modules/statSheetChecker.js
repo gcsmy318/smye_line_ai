@@ -63,11 +63,12 @@ async function checkStatSheet() {
 
   const result = {};
 
+  /* header วันที่อยู่ row 3 */
   const header = rows[2];
 
   const dateColumns = [];
 
-  for (let c = 3; c < header.length; c++) {
+  for (let c = 4; c < header.length; c++) {
 
     const date = parseSheetDate(header[c]);
 
@@ -86,10 +87,13 @@ async function checkStatSheet() {
 
   console.log("DATE COLUMNS =", dateColumns);
 
+  /* จังหวัดเริ่ม row 4 */
+
   for (let r = 3; r < rows.length; r++) {
 
     const row = rows[r];
-    const province = row[0];
+
+    const province = row[1]; // B column
 
     if (!province) continue;
 
@@ -119,16 +123,14 @@ async function checkStatSheet() {
 
   }
 
-  const detail = {};
   const provinces = [];
+  const detail = {};
 
   for (const province in result) {
 
     provinces.push(province);
 
-    const owners = provinceOwners[province] || [];
-
-    detail[province] = owners;
+    detail[province] = provinceOwners[province] || [];
 
   }
 
