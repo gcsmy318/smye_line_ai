@@ -4,7 +4,7 @@ const { google } = require("googleapis");
    ผู้รับผิดชอบ
 ========================================= */
 
-const provinceOwners = {
+const provinces = {
   "พัทลุง": ["อ.เก๋", "พี่รัตน์"],
   "สงขลา": ["อ.ดิว", "พี่รุ้ง", "พี่อัลฟ่า"],
   "สตูล": ["อ.เช้าตรู่", "อ.เดช"],
@@ -13,11 +13,19 @@ const provinceOwners = {
   "ปัตตานี": ["พี่ฝน"]
 };
 
+/* =========================================
+   TIME
+========================================= */
+
 function getThaiNow() {
   return new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
   );
 }
+
+/* =========================================
+   DATE PARSER
+========================================= */
 
 function parseSheetDate(text) {
 
@@ -33,7 +41,12 @@ function parseSheetDate(text) {
   const year = getThaiNow().getFullYear();
 
   return new Date(year, month - 1, day);
+
 }
+
+/* =========================================
+   MAIN
+========================================= */
 
 async function checkStatSheet() {
 
@@ -56,14 +69,10 @@ async function checkStatSheet() {
 
   const rows = res.data.values || [];
 
-  console.log("📊 STAT CHECK DEBUG");
-  console.log("TOTAL ROWS =", rows.length);
-
   const today = getThaiNow();
 
   const result = {};
 
-  /* header วันที่อยู่ row 3 */
   const header = rows[2];
 
   const dateColumns = [];
@@ -85,25 +94,16 @@ async function checkStatSheet() {
 
   }
 
-  console.log("DATE COLUMNS =", dateColumns);
-
-  /* จังหวัดเริ่ม row 4 */
-
   for (let r = 3; r < rows.length; r++) {
 
     const row = rows[r];
-
-    const province = row[1]; // B column
+    const province = row[1];
 
     if (!province) continue;
-
-    console.log("\nจังหวัด:", province);
 
     for (const d of dateColumns) {
 
       const value = row[d.col];
-
-      console.log(`${d.label} = ${value || "-"}`);
 
       if (!value) continue;
 
@@ -123,24 +123,22 @@ async function checkStatSheet() {
 
   }
 
-const provinces = [];
-const detail = {};
+  const provincesList = [];
+  const detail = {};
 
-for (const province in result) {
+  for (const province in result) {
 
-  provinces.push(province);
+    provincesList.push(province);
 
-  detail[province] = {
-    owners: provinceOwners[province] || [],
-    dates: result[province]
-  };
+    detail[province] = {
+      owners: provinces[province] || [],
+      dates: result[province]
+    };
 
-}
-
-  console.log("RESULT =", detail);
+  }
 
   return {
-    provinces,
+    provinces: provincesList,
     detail
   };
 

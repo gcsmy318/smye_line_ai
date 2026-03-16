@@ -12,7 +12,7 @@ function startStatSheetScheduler() {
 
   console.log("📊 STAT SCHEDULER INITIALIZED");
 
-  cron.schedule("12 9 * * 0,1,3,5", async () => {
+  cron.schedule("0 8 * * 0,1,3,5", async () => {
 
     try {
 
