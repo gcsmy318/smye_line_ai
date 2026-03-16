@@ -10,7 +10,9 @@ const STAT_GROUP = "C094d3624ddb25a8158cd5b992d58bdaa";
 
 function startStatSheetScheduler() {
 
-  cron.schedule("0 8 * * 0,1,3,5", async () => {
+
+
+  cron.schedule("7 9 * * 0,1,3,5", async () => {
 
     try {
 
@@ -50,7 +52,7 @@ function startStatSheetScheduler() {
 
     }
 
-  });
+  }, { timezone: "Asia/Bangkok" });
 
 }
 
