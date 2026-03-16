@@ -2,21 +2,19 @@ const cron = require("node-cron");
 const { client } = require("../../config/line");
 const { checkStatSheet } = require("../modules/statSheetChecker");
 
-const STAT_GROUP = "C094d3624ddb25a8158cd5b992d58bdaa";
-
 /* =========================================
    START SCHEDULER
 ========================================= */
 
-function startStatSheetScheduler() {
+function startStatSheetScheduler(groupId) {
 
-  console.log("📊 STAT SCHEDULER INITIALIZED");
+  console.log("📊 STAT SCHEDULER INITIALIZED →", groupId);
 
   cron.schedule("0 9 * * 0,1,3,5", async () => {
 
     try {
 
-      console.log("📊 STAT SCHEDULER RUN");
+      console.log("📊 STAT SCHEDULER RUN →", groupId);
 
       const result = await checkStatSheet();
 
@@ -42,12 +40,12 @@ function startStatSheetScheduler() {
 
       }
 
-      await client.pushMessage(STAT_GROUP, {
+      await client.pushMessage(groupId, {
         type: "text",
         text: msg
       });
 
-      console.log("✅ STAT MESSAGE SENT");
+      console.log("✅ STAT MESSAGE SENT →", groupId);
 
     } catch (err) {
 

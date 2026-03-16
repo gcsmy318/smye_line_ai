@@ -15,6 +15,9 @@ const app = express();
 /* 🔥 กัน LINE webhook event ซ้ำ */
 const processedEvents = new Set();
 
+const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
+const STAT_GROUP = "C094d3624ddb25a8158cd5b992d58bdaa";
+
 /* =====================================================
    🚀 START SERVER
 ===================================================== */
@@ -28,7 +31,8 @@ console.log("✅ Firebase initialized");
 /* 🔥 2️⃣ Start General Scheduler */
 try {
   startGeneralScheduler();
-  startStatSheetScheduler ();
+  startStatSheetScheduler(TARGET_GROUP);
+  startStatSheetScheduler(STAT_GROUP);
   console.log("⏰ General Scheduler started");
 } catch (err) {
   console.error("❌ Scheduler Error:", err);
