@@ -1,64 +1,164 @@
-const cron = require("node-cron");
-const { client } = require("../../config/line");
-const { checkStatSheet } = require("../modules/statSheetChecker");
-
-const STAT_GROUP = "C094d3624ddb25a8158cd5b992d58bdaa";
+const { google } = require("googleapis");
 
 /* =========================================
-   START SCHEDULER
+   ผู้รับผิดชอบ
 ========================================= */
 
-function startStatSheetScheduler() {
+const provinceOwners = {
+  "พัทลุง": ["อ.เก๋", "พี่รัตน์"],
+  "สงขลา": ["อ.ดิว", "พี่รุ้ง", "พี่อัลฟ่า"],
+  "สตูล": ["อ.เช้าตรู่", "อ.เดช"],
+  "นราธิวาส": ["อ.ดอน"],
+  "ยะลา": ["พี่ทิม"],
+  "ปัตตานี": ["พี่ฝน"]
+};
 
-  console.log("📊 STAT SCHEDULER INITIALIZED");
+/* =========================================
+   TIME
+========================================= */
 
-  cron.schedule("0 8 * * 0,1,3,5", async () => {
+function getThaiNow() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+  );
+}
 
-    try {
+/* =========================================
+   DATE PARSER
+========================================= */
 
-      console.log("📊 STAT SCHEDULER RUN");
+function parseSheetDate(text) {
 
-      const result = await checkStatSheet();
+  if (!text) return null;
 
-      if (!result || result.provinces.length === 0) {
-        console.log("✅ ทุกจังหวัดส่งสถิติแล้ว");
-        return;
-      }
+  const parts = text.split("/");
 
-      let msg = "⚠️ จังหวัดที่ยังไม่ส่งสถิติ\n\n";
+  if (parts.length !== 2) return null;
 
-      for (const province in result.detail) {
+  const day = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
 
-        const owners = result.detail[province].owners;
-        const dates = result.detail[province].dates;
+  const year = getThaiNow().getFullYear();
 
-        msg += `${province} (${owners.join(" ")})\n`;
+  return new Date(year, month - 1, day);
 
-        dates.forEach(d => {
-          msg += `- ${d}\n`;
-        });
+}
 
-        msg += "\n";
+/* =========================================
+   MAIN
+========================================= */
 
-      }
+async function checkStatSheet() {
 
-      await client.pushMessage(STAT_GROUP, {
-        type: "text",
-        text: msg
+  const auth = new google.auth.GoogleAuth({
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+  });
+
+  const sheets = google.sheets({
+    version: "v4",
+    auth
+  });
+
+  const spreadsheetId = "1mjRq5Nj5DCQwZTPrqyMdC0Fge-V3OF-EsQOkiW9vKIQ";
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: "A1:Z200"
+  });
+
+  const rows = res.data.values || [];
+
+  console.log("📊 STAT CHECK DEBUG");
+  console.log("TOTAL ROWS =", rows.length);
+
+  const today = getThaiNow();
+
+  const result = {};
+
+  /* header วันที่อยู่ row 3 */
+
+  const header = rows[2];
+
+  const dateColumns = [];
+
+  for (let c = 4; c < header.length; c++) {
+
+    const date = parseSheetDate(header[c]);
+
+    if (!date) continue;
+
+    if (date <= today) {
+
+      dateColumns.push({
+        col: c,
+        label: header[c]
       });
-
-      console.log("✅ STAT MESSAGE SENT");
-
-    } catch (err) {
-
-      console.error("stat scheduler error", err);
 
     }
 
-  }, { timezone: "Asia/Bangkok" });
+  }
+
+  console.log("DATE COLUMNS =", dateColumns);
+
+  /* จังหวัดเริ่ม row 4 */
+
+  for (let r = 3; r < rows.length; r++) {
+
+    const row = rows[r];
+    const province = row[1];
+
+    if (!province) continue;
+
+    console.log("\nจังหวัด:", province);
+
+    for (const d of dateColumns) {
+
+      const value = row[d.col];
+
+      console.log(`${d.label} = ${value || "-"}`);
+
+      if (!value) continue;
+
+      const clean = value.toString().trim().toUpperCase();
+
+      if (clean === "X") {
+
+        if (!result[province]) {
+          result[province] = [];
+        }
+
+        result[province].push(d.label);
+
+      }
+
+    }
+
+  }
+
+  const provinces = [];
+  const detail = {};
+
+  for (const province in result) {
+
+    provinces.push(province);
+
+    detail[province] = {
+      owners: provinceOwners[province] || [],
+      dates: result[province]
+    };
+
+  }
+
+  console.log("RESULT =", detail);
+
+  return {
+    provinces,
+    detail
+  };
 
 }
 
 module.exports = {
-  startStatSheetScheduler
+  checkStatSheet
 };

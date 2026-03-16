@@ -10,8 +10,9 @@ const STAT_GROUP = "C094d3624ddb25a8158cd5b992d58bdaa";
 
 function startStatSheetScheduler() {
 
+  console.log("📊 STAT SCHEDULER INITIALIZED");
 
-  cron.schedule("0 8 * * 0,1,3,5", async () => {
+  cron.schedule("0 9 * * 0,1,3,5", async () => {
 
     try {
 
@@ -28,10 +29,13 @@ function startStatSheetScheduler() {
 
       for (const province in result.detail) {
 
-        msg += province + "\n";
+        const owners = result.detail[province].owners;
+        const dates = result.detail[province].dates;
 
-        result.detail[province].forEach(name => {
-          msg += "- " + name + "\n";
+        msg += `${province} (${owners.join(" ")})\n`;
+
+        dates.forEach(d => {
+          msg += `- ${d}\n`;
         });
 
         msg += "\n";
@@ -56,5 +60,5 @@ function startStatSheetScheduler() {
 }
 
 module.exports = {
-  startStatSheetScheduler 
+  startStatSheetScheduler
 };
