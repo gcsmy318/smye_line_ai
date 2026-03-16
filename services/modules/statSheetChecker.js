@@ -1,149 +1,64 @@
-const { google } = require("googleapis");
+const cron = require("node-cron");
+const { client } = require("../../config/line");
+const { checkStatSheet } = require("../modules/statSheetChecker");
+
+const STAT_GROUP = "C094d3624ddb25a8158cd5b992d58bdaa";
 
 /* =========================================
-   ผู้รับผิดชอบ
+   START SCHEDULER
 ========================================= */
 
-const provinces = {
-  "พัทลุง": ["อ.เก๋", "พี่รัตน์"],
-  "สงขลา": ["อ.ดิว", "พี่รุ้ง", "พี่อัลฟ่า"],
-  "สตูล": ["อ.เช้าตรู่", "อ.เดช"],
-  "นราธิวาส": ["อ.ดอน"],
-  "ยะลา": ["พี่ทิม"],
-  "ปัตตานี": ["พี่ฝน"]
-};
+function startStatSheetScheduler() {
 
-/* =========================================
-   TIME
-========================================= */
+  console.log("📊 STAT SCHEDULER INITIALIZED");
 
-function getThaiNow() {
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
-  );
-}
+  cron.schedule("0 8 * * 0,1,3,5", async () => {
 
-/* =========================================
-   DATE PARSER
-========================================= */
+    try {
 
-function parseSheetDate(text) {
+      console.log("📊 STAT SCHEDULER RUN");
 
-  if (!text) return null;
+      const result = await checkStatSheet();
 
-  const parts = text.split("/");
+      if (!result || result.provinces.length === 0) {
+        console.log("✅ ทุกจังหวัดส่งสถิติแล้ว");
+        return;
+      }
 
-  if (parts.length !== 2) return null;
+      let msg = "⚠️ จังหวัดที่ยังไม่ส่งสถิติ\n\n";
 
-  const day = parseInt(parts[0]);
-  const month = parseInt(parts[1]);
+      for (const province in result.detail) {
 
-  const year = getThaiNow().getFullYear();
+        const owners = result.detail[province].owners;
+        const dates = result.detail[province].dates;
 
-  return new Date(year, month - 1, day);
+        msg += `${province} (${owners.join(" ")})\n`;
 
-}
+        dates.forEach(d => {
+          msg += `- ${d}\n`;
+        });
 
-/* =========================================
-   MAIN
-========================================= */
-
-async function checkStatSheet() {
-
-  const auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
-    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-  });
-
-  const sheets = google.sheets({
-    version: "v4",
-    auth
-  });
-
-  const spreadsheetId = "1mjRq5Nj5DCQwZTPrqyMdC0Fge-V3OF-EsQOkiW9vKIQ";
-
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: "A1:Z200"
-  });
-
-  const rows = res.data.values || [];
-
-  const today = getThaiNow();
-
-  const result = {};
-
-  const header = rows[2];
-
-  const dateColumns = [];
-
-  for (let c = 4; c < header.length; c++) {
-
-    const date = parseSheetDate(header[c]);
-
-    if (!date) continue;
-
-    if (date <= today) {
-
-      dateColumns.push({
-        col: c,
-        label: header[c]
-      });
-
-    }
-
-  }
-
-  for (let r = 3; r < rows.length; r++) {
-
-    const row = rows[r];
-    const province = row[1];
-
-    if (!province) continue;
-
-    for (const d of dateColumns) {
-
-      const value = row[d.col];
-
-      if (!value) continue;
-
-      const clean = value.toString().trim().toUpperCase();
-
-      if (clean === "X") {
-
-        if (!result[province]) {
-          result[province] = [];
-        }
-
-        result[province].push(d.label);
+        msg += "\n";
 
       }
 
+      await client.pushMessage(STAT_GROUP, {
+        type: "text",
+        text: msg
+      });
+
+      console.log("✅ STAT MESSAGE SENT");
+
+    } catch (err) {
+
+      console.error("stat scheduler error", err);
+
     }
 
-  }
-
-  const provincesList = [];
-  const detail = {};
-
-  for (const province in result) {
-
-    provincesList.push(province);
-
-    detail[province] = {
-      owners: provinces[province] || [],
-      dates: result[province]
-    };
-
-  }
-
-  return {
-    provinces: provincesList,
-    detail
-  };
+  }, { timezone: "Asia/Bangkok" });
 
 }
 
 module.exports = {
-  checkStatSheet
+  startStatSheetScheduler
 };
