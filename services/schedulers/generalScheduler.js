@@ -51,34 +51,21 @@ function readProgramFromExcel(targetDate) {
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(sheet);
 
-    const key = formatExcelDateKey(targetDate);
+    // แปลง date → format Excel
+    const day = targetDate.getDate();
+    const month = targetDate.toLocaleDateString("en-GB", { month: "short" });
+    const year = targetDate.getFullYear() + 543;
 
+    const key = `${day}-${month}-${year}`; // เช่น 22-Mar-2569
+
+    /* ✅ FIX: ใช้ column "วันที่" ตรง ๆ */
     const row = data.find(r => {
-
-      for (const k in r) {
-
-        const val = r[k];
-
-        if (!val) continue;
-
-        const str = String(val).trim();
-
-        if (
-          str.includes(key) ||          // 22-Mar-2569
-          str.includes("/") ||         // 22/03/2026
-          str.includes("-")            // fallback
-        ) {
-          if (str.includes(targetDate.getDate())) {
-            return true;
-          }
-        }
-
-      }
-      return false;
+      const excelDate = String(r["วันที่"] || "").trim();
+      return excelDate === key;
     });
 
     if (!row) {
-      console.log("❌ ไม่เจอข้อมูลวันที่:", key);
+      console.log("❌ ไม่เจอข้อมูล:", key);
       return {};
     }
 
@@ -129,21 +116,20 @@ function buildMondayProgram() {
 *********************
 1. teaser Sustainable
 2. อธิฐาน นมัสการ (${data["นมัสการ"] || "-"})
-3. เคลื่อนไหว : ผู้นำวันนั้น
-4. มหาสนิท : ผู้นำวันนั้น เพลง ???
-5. ถวายทรัพย์ ผู้นำวันนั้น เพลง ???
-6. ต้อนรับ / VIP ผู้นำวันนั้น เพลง ???
+3. เคลื่อนไหว : ผู้นำ
+4. มหาสนิท : ผู้นำ เพลง ???
+5. ถวายทรัพย์ ผู้นำ เพลง ???
+6. ต้อนรับ/VIP ผู้นำ เพลง ???
    1.
    2.
-   3.
 7. hope channel ???
 8. คำพยานสด นำโดย (${data["MC"] || "-"})
    1.
    2.
-9. อนุสรณ์พระพร นำโดย ผู้นำวันนั้น เพลง ???
+9. อนุสรณ์พระพร นำโดย ผู้นำ เพลง ???
 10. VTR แนะนำผู้เทศน์
 11. เทศนา โดย ???
-12. เพลงตอบสนอง โดย ผู้นำวันนั้น เพลง ???
+12. เพลงตอบสนอง โดย ผู้นำ เพลง ???
 13. อธิฐานปิด
 ******งานเบื้องหลัง*****
 ผู้จัดการรอบ (${data["ผู้จัดการ"] || "-"})
@@ -152,7 +138,6 @@ Support คอมฯ : -
 BS : (${data["BS1"] || "-"}) (${data["BS2"] || "-"})
 โต๊ะต้อนรับ (${data["ต้อนรับ"] || "-"})
 ถือมหาสนิท/ถุงถวาย (${data["ถือมหาสนิท/ถุงถวาย"] || "-"})
-
 คจ.เด็ก (${data["คจ.เด็ก 1"] || "-"}) (${data["คจ.เด็ก 2"] || "-"})
 *****งานนมัสการ******
 กีต้าไฟฟ้า (${data["กีต้า"] || "-"})
