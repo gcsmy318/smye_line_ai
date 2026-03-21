@@ -146,8 +146,21 @@ function readProgramFromExcel(targetDate) {
     const result = {};
     headers.forEach((h, i) => {
       if (!h) return;
+
       const clean = normalizeKey(h);
-      result[clean] = found[i];
+
+      let value = found[i];
+
+      // 🔥 FIX: ถ้า undefined → หา column ถัดไป
+      if (value === undefined || value === "") {
+        value = found[i + 1];
+      }
+
+      if (value === undefined || value === "") {
+        value = found[i + 2];
+      }
+
+      result[clean] = value;
     });
 
     console.log("✅ mapped row:", result);
