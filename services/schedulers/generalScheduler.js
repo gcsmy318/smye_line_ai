@@ -76,11 +76,11 @@ function readProgramFromExcel(targetDate) {
     console.log("📊 total rows:", rows.length);
 
     // 🔥 header จริงอยู่แถวแรก
-    const headers = rows[0];
+    const headers = rows[1];
     console.log("🧾 headers:", headers);
 
     // 🔥 data จริงเริ่มแถว 1
-    const dataRows = rows.slice(1);
+    const dataRows = rows.slice(2); 
 
     const day = targetDate.getDate();
     const month = targetDate.toLocaleDateString("en-GB", { month: "short" });
@@ -132,7 +132,7 @@ function readProgramFromExcel(targetDate) {
     console.error("❌ read excel error:", err);
     return {};
   }
-  
+
 }
 
 /* =====================================================
