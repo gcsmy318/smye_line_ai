@@ -71,6 +71,7 @@ function readProgramFromExcel(targetDate) {
     /* 🔥 FIX: หา column "วันที่" แบบ normalize */
     const row = data.find(r => {
 
+
       for (const k in r) {
 
         const cleanKey = normalizeKey(k);
@@ -84,6 +85,8 @@ function readProgramFromExcel(targetDate) {
       }
 
       return false;
+
+
     });
 
     if (!row) {
