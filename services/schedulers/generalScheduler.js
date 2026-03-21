@@ -48,9 +48,18 @@ function normalizeKey(str) {
 
 function normalizeRow(row) {
   const newRow = {};
+
+  console.log("🔧 normalizeRow input:", row);
+
   Object.keys(row || {}).forEach(k => {
-    newRow[normalizeKey(k)] = row[k];
+    const clean = normalizeKey(k);
+    newRow[clean] = row[k];
+
+    console.log(`   ➤ ${k} => ${clean} = ${row[k]}`);
   });
+
+  console.log("✅ normalized row:", newRow);
+
   return newRow;
 }
 
@@ -60,44 +69,64 @@ function readProgramFromExcel(targetDate) {
     const filePath = path.join(process.cwd(), "hope_program_2026.xlsx");
     const workbook = XLSX.readFile(filePath);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet);
+
+    // 🔥 อ่านเป็น array
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    console.log("📊 total rows:", rows.length);
+
+    // 🔥 header จริงอยู่แถวแรก
+    const headers = rows[0];
+    console.log("🧾 headers:", headers);
+
+    // 🔥 data จริงเริ่มแถว 1
+    const dataRows = rows.slice(1);
 
     const day = targetDate.getDate();
     const month = targetDate.toLocaleDateString("en-GB", { month: "short" });
     const year = targetDate.getFullYear() + 543;
 
     const key = `${day}-${month}-${year}`;
+    console.log("🎯 target key:", key);
 
-    /* 🔥 FIX: หา column "วันที่" แบบ normalize */
-    const row = data.find(r => {
+    // 🔥 หา index ของ "วันที่"
+    const dateIndex = headers.findIndex(h =>
+      normalizeKey(h) === "วันที่"
+    );
 
+    console.log("📅 dateIndex:", dateIndex);
 
-      for (const k in r) {
-
-        const cleanKey = normalizeKey(k);
-
-        if (cleanKey === "วันที่") {
-
-          const val = String(r[k] || "").trim();
-
-          if (val === key) return true;
-        }
-      }
-
-      return false;
-
-
-    });
-
-    if (!row) {
-      console.log("❌ ไม่เจอข้อมูล:", key);
-      console.log("🔍 sample row:", data[0]); // debug สำคัญ
+    if (dateIndex === -1) {
+      console.log("❌ หา column วันที่ไม่เจอ");
       return {};
     }
 
-    console.log("✅ เจอ row:", row);
+    // 🔥 หา row
+    const found = dataRows.find((row, i) => {
+      const val = String(row[dateIndex] || "").trim();
 
-    return row;
+      console.log(`🔎 row ${i} date:`, val);
+
+      return val === key;
+    });
+
+    if (!found) {
+      console.log("❌ ไม่เจอข้อมูล:", key);
+      return {};
+    }
+
+    console.log("✅ found row:", found);
+
+    // 🔥 map เป็น object
+    const result = {};
+    headers.forEach((h, i) => {
+      const clean = normalizeKey(h);
+      result[clean] = found[i];
+    });
+
+    console.log("✅ mapped row:", result);
+
+    return result;
 
   } catch (err) {
     console.error("❌ read excel error:", err);
