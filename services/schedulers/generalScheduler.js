@@ -111,7 +111,24 @@ function readProgramFromExcel(targetDate) {
 
     // 🔥 หา row
     const found = dataRows.find((row, i) => {
-      const val = String(row[dateIndex] || "").trim();
+
+      const excelVal = row[dateIndex];
+
+      let val = "";
+
+      if (typeof excelVal === "number") {
+
+        const jsDate = new Date((excelVal - 25569) * 86400 * 1000);
+
+        const d = jsDate.getDate();
+        const m = jsDate.toLocaleDateString("en-GB", { month: "short" });
+        const y = jsDate.getFullYear() + 543;
+
+        val = `${d}-${m}-${y}`;
+
+      } else {
+        val = String(excelVal || "").trim();
+      }
 
       console.log(`🔎 row ${i} date:`, val);
 
