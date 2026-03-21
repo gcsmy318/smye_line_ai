@@ -48,9 +48,18 @@ function normalizeKey(str) {
 
 function normalizeRow(row) {
   const newRow = {};
+
+  console.log("🔧 normalizeRow input:", row);
+
   Object.keys(row || {}).forEach(k => {
-    newRow[normalizeKey(k)] = row[k];
+    const clean = normalizeKey(k);
+    newRow[clean] = row[k];
+
+    console.log(`   ➤ ${k} => ${clean} = ${row[k]}`);
   });
+
+  console.log("✅ normalized row:", newRow);
+
   return newRow;
 }
 
@@ -58,29 +67,50 @@ function normalizeRow(row) {
 function readProgramFromExcel(targetDate) {
   try {
     const filePath = path.join(process.cwd(), "hope_program_2026.xlsx");
+    console.log("📂 filePath:", filePath);
+
     const workbook = XLSX.readFile(filePath);
+    console.log("📊 sheetNames:", workbook.SheetNames);
+
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(sheet);
+
+    console.log("📊 total rows:", data.length);
+
+    if (data.length > 0) {
+      console.log("🧾 headers:", Object.keys(data[0]));
+      console.log("🧾 first row:", data[0]);
+    }
 
     const day = targetDate.getDate();
     const month = targetDate.toLocaleDateString("en-GB", { month: "short" });
     const year = targetDate.getFullYear() + 543;
 
     const key = `${day}-${month}-${year}`;
+    console.log("🎯 target key:", key);
 
-    /* 🔥 FIX: หา column "วันที่" แบบ normalize */
-    const row = data.find(r => {
+    let foundRow = null;
 
+    const row = data.find((r, index) => {
+
+      console.log(`🔎 checking row ${index}`);
 
       for (const k in r) {
 
         const cleanKey = normalizeKey(k);
+        const val = String(r[k] || "").trim();
+
+        console.log("   ➤ key:", k, "| clean:", cleanKey, "| val:", val);
 
         if (cleanKey === "วันที่") {
 
-          const val = String(r[k] || "").trim();
+          console.log("   📅 found date column:", val);
 
-          if (val === key) return true;
+          if (val === key) {
+            console.log("   ✅ MATCH FOUND");
+            foundRow = r;
+            return true;
+          }
         }
       }
 
