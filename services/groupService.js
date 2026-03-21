@@ -94,6 +94,27 @@ async function handleMessage(event) {
     const normalized = text.toLowerCase();
 
     /* ===============================
+       🔥 NEW COMMAND (ดูหน้าที่)
+    ================================ */
+
+    if (normalized === "ดูหน้าที่") {
+
+      try {
+
+        const msg = scheduler.buildMondayProgram();
+
+        return safeReply(event, msg);
+
+      } catch (err) {
+
+        console.error("ดูหน้าที่ error", err);
+        return safeReply(event, "❌ โหลดโปรแกรมไม่สำเร็จ");
+
+      }
+
+    }
+
+    /* ===============================
        STAT COMMAND
     ================================ */
 

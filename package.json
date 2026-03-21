@@ -10,9 +10,14 @@
     "body-parser": "^1.20.2",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "firebase-admin": "^12.0.0",
+    "firebase-admin": "^12.7.0",
     "googleapis": "^171.4.0",
     "node-cron": "^3.0.3",
-    "uuid": "^9.0.1"
-  }
+    "uuid": "^9.0.1",
+    "xlsx": "^0.18.5"
+  },
+  "description": "Spirit AI คือระบบ LINE Bot สำหรับจัดการงานภายในกลุ่ม เช่น:",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

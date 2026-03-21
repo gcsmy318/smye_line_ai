@@ -3,6 +3,11 @@ const { getDB } = require("../../config/firebase");
 const { client } = require("../../config/line");
 const { handleReminders } = require("../modules/reminderModule");
 const queue = require("../lineQueue");
+
+/* 🔥 เพิ่มตรงนี้ */
+const XLSX = require("xlsx");
+const path = require("path");
+
 /* ===================================================== */
 
 const TARGET_GROUP = "C8a88d6ad8fc5984939d59de795c719d6";
@@ -28,6 +33,63 @@ function formatThaiDate(date) {
   const month = date.toLocaleDateString("th-TH", { month: "short" });
   const year = date.getFullYear() + 543;
   return `${day} ${month} ${year}`;
+}
+
+/* 🔥 helper แปลง date ให้ match excel */
+function formatExcelDateKey(date) {
+  const day = date.getDate();
+  const month = date.toLocaleDateString("en-GB", { month: "short" });
+  const year = date.getFullYear() + 543;
+  return `${day}-${month}-${year}`;
+}
+
+/* 🔥 อ่าน Excel */
+function readProgramFromExcel(targetDate) {
+  try {
+    const filePath = path.join(process.cwd(), "hope_program_2026.xlsx");
+    const workbook = XLSX.readFile(filePath);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet);
+
+    const key = formatExcelDateKey(targetDate);
+
+    const row = data.find(r => {
+
+      for (const k in r) {
+
+        const val = r[k];
+
+        if (!val) continue;
+
+        const str = String(val).trim();
+
+        if (
+          str.includes(key) ||          // 22-Mar-2569
+          str.includes("/") ||         // 22/03/2026
+          str.includes("-")            // fallback
+        ) {
+          if (str.includes(targetDate.getDate())) {
+            return true;
+          }
+        }
+
+      }
+      return false;
+    });
+
+    if (!row) {
+      console.log("❌ ไม่เจอข้อมูลวันที่:", key);
+      return {};
+    }
+
+    console.log("✅ เจอ row:", row);
+
+    return row;
+
+  } catch (err) {
+    console.error("❌ read excel error:", err);
+    return {};
+  }
 }
 
 /* =====================================================
@@ -59,41 +121,46 @@ function buildMondayProgram() {
   const sunday = getNextSunday();
   const dateStr = formatThaiDate(sunday);
 
-  return `---------------------------------------
+  /* 🔥 ดึงข้อมูลจาก Excel */
+  const data = readProgramFromExcel(sunday);
+
+  return `---------------------------
 โปรแกรมวันอาทิตย์ ${dateStr}
-**************************
+*********************
 1. teaser Sustainable
-2. อธิฐาน นมัสการ -
-3. เคลื่อนไหว : -
-4. มหาสนิท : - เพลง -
-5. ถวายทรัพย์ - เพลง -
-6. ต้อนรับ / VIP - เพลง -
+2. อธิฐาน นมัสการ (${data["นมัสการ"] || "-"})
+3. เคลื่อนไหว : ผู้นำวันนั้น
+4. มหาสนิท : ผู้นำวันนั้น เพลง ???
+5. ถวายทรัพย์ ผู้นำวันนั้น เพลง ???
+6. ต้อนรับ / VIP ผู้นำวันนั้น เพลง ???
    1.
    2.
    3.
-7. hope channel -
-8. คำพยานสด นำโดย -
+7. hope channel ???
+8. คำพยานสด นำโดย (${data["MC"] || "-"})
    1.
    2.
-9. อนุสรณ์พระพร นำโดย - เพลง -
+9. อนุสรณ์พระพร นำโดย ผู้นำวันนั้น เพลง ???
 10. VTR แนะนำผู้เทศน์
-11. เทศนา โดย -
-12. เพลงตอบสนอง -
+11. เทศนา โดย ???
+12. เพลงตอบสนอง โดย ผู้นำวันนั้น เพลง ???
 13. อธิฐานปิด
-******งานเบื้องหลัง*******
-ผู้จัดการรอบ -
-mixer / mic -
+******งานเบื้องหลัง*****
+ผู้จัดการรอบ (${data["ผู้จัดการ"] || "-"})
+mixer / mic (${data["MIXER"] || "-"})
 Support คอมฯ : -
-BS :
-โต๊ะต้อนรับ -
-คจ.เด็ก -
-*****งานนมัสการ********
-กีต้าไฟฟ้า -
-กลอง -
-เบส -
-คีบอร์ด -
-คอรัส -
-**********************`;
+BS : (${data["BS1"] || "-"}) (${data["BS2"] || "-"})
+โต๊ะต้อนรับ (${data["ต้อนรับ"] || "-"})
+ถือมหาสนิท/ถุงถวาย (${data["ถือมหาสนิท/ถุงถวาย"] || "-"})
+
+คจ.เด็ก (${data["คจ.เด็ก 1"] || "-"}) (${data["คจ.เด็ก 2"] || "-"})
+*****งานนมัสการ******
+กีต้าไฟฟ้า (${data["กีต้า"] || "-"})
+กลอง (${data["กลอง"] || "-"})
+เบส (${data["เบส"] || "-"})
+คีบอร์ด (${data["คีบอร์ด"] || "-"})
+คอรัส - (${data["คอรัส1"] || "-"}) (${data["คอรัส2"] || "-"})
+*******************`;
 }
 
 function buildSaturday15() {
