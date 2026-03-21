@@ -61,3 +61,4 @@ coverage/
 # Google service account
 service-account.json
 *.service-account.json
+~$hope_program_2026.xlsx
