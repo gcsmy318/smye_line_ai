@@ -96,7 +96,8 @@ function push(to, message) {
 function push(to, message) {
   if (!to) return;
 
-  const key = `${to}_${message.type}_${message.text}`;
+  const text = message?.text || "";
+  const key = `${to}_${message.type}_${text}`;
 
   const now = Date.now();
 
@@ -122,7 +123,7 @@ function push(to, message) {
   const exists = queue.some(job =>
     job.to === to &&
     job.message.type === message.type &&
-    job.message.text === message.text
+    (job.message.text || "") === text
   );
 
   if (exists) {

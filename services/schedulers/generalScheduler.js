@@ -35,12 +35,23 @@ function formatThaiDate(date) {
   return `${day} ${month} ${year}`;
 }
 
-/* 🔥 helper แปลง date ให้ match excel */
-function formatExcelDateKey(date) {
-  const day = date.getDate();
-  const month = date.toLocaleDateString("en-GB", { month: "short" });
-  const year = date.getFullYear() + 543;
-  return `${day}-${month}-${year}`;
+/* =====================================================
+   🔥 เพิ่ม (แก้ key เพี้ยน)
+===================================================== */
+
+function normalizeKey(str) {
+  return String(str || "")
+    .replace(/\s/g, "")
+    .replace(/\u00A0/g, "")
+    .trim();
+}
+
+function normalizeRow(row) {
+  const newRow = {};
+  Object.keys(row || {}).forEach(k => {
+    newRow[normalizeKey(k)] = row[k];
+  });
+  return newRow;
 }
 
 /* 🔥 อ่าน Excel */
@@ -60,8 +71,7 @@ function readProgramFromExcel(targetDate) {
 
     /* ✅ FIX: ใช้ column "วันที่" ตรง ๆ */
     const row = data.find(r => {
-      const excelDate = String(r["วันที่"] || "").trim();
-      return excelDate === key;
+      return String(r["วันที่"] || "").trim() === key;
     });
 
     if (!row) {
@@ -104,12 +114,12 @@ hope channel มีไหมครับ ???
 
 function buildMondayProgram() {
 
-  const day = new Date().getDay();
   const sunday = getNextSunday();
   const dateStr = formatThaiDate(sunday);
 
-  /* 🔥 ดึงข้อมูลจาก Excel */
-  const data = readProgramFromExcel(sunday);
+  /* 🔥 เพิ่ม */
+  const raw = readProgramFromExcel(sunday);
+  const data = normalizeRow(raw);
 
   return `---------------------------
 โปรแกรมวันอาทิตย์ ${dateStr}
@@ -134,11 +144,11 @@ function buildMondayProgram() {
 ******งานเบื้องหลัง*****
 ผู้จัดการรอบ (${data["ผู้จัดการ"] || "-"})
 mixer / mic (${data["MIXER"] || "-"})
-Support คอมฯ : -
-BS : (${data["BS1"] || "-"}) (${data["BS2"] || "-"})
+Support คอมฯ : (${data["Com"] || "-"})
+BS : (${data["BS1"] || "-"}) (${data["BS2"] || "-"}
 โต๊ะต้อนรับ (${data["ต้อนรับ"] || "-"})
 ถือมหาสนิท/ถุงถวาย (${data["ถือมหาสนิท/ถุงถวาย"] || "-"})
-คจ.เด็ก (${data["คจ.เด็ก 1"] || "-"}) (${data["คจ.เด็ก 2"] || "-"})
+คจ.เด็ก (${data["คจ.เด็ก1"] || "-"}) (${data["คจ.เด็ก2"] || "-"})
 *****งานนมัสการ******
 กีต้าไฟฟ้า (${data["กีต้า"] || "-"})
 กลอง (${data["กลอง"] || "-"})
