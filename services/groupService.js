@@ -24,6 +24,28 @@ const STAT_GROUP = "C094d3624ddb25a8158cd5b992d58bdaa";
 let callApiRunning = false;
 let callApiStart = 0;
 
+/* 🔥 NEW: กัน event ซ้ำ */
+const processedEvents = new Set();
+
+function isDuplicateEvent(event) {
+  const id = event.message?.id;
+  if (!id) return false;
+
+  if (processedEvents.has(id)) {
+    console.log("⚠ duplicate event:", id);
+    return true;
+  }
+
+  processedEvents.add(id);
+
+  // เคลียร์ memory กัน leak
+  setTimeout(() => {
+    processedEvents.delete(id);
+  }, 5 * 60 * 1000);
+
+  return false;
+}
+
 const DEFAULT_MODULES = {
   reminder: false,
   permanentNote: false,
@@ -84,6 +106,9 @@ async function handleMessage(event) {
   try {
 
     if (!event || !event.message || event.message.type !== "text") return;
+
+    /* 🔥 กัน event ซ้ำ */
+    if (isDuplicateEvent(event)) return;
 
     const groupId = event.source?.groupId || event.source?.userId;
     if (!groupId) return;
