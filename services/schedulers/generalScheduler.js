@@ -145,6 +145,7 @@ function readProgramFromExcel(targetDate) {
     // 🔥 map เป็น object
     const result = {};
     headers.forEach((h, i) => {
+      if (!h) return;
       const clean = normalizeKey(h);
       result[clean] = found[i];
     });
@@ -216,7 +217,7 @@ function buildMondayProgram() {
 ผู้จัดการรอบ (${data["ผู้จัดการ"] || "-"})
 mixer / mic (${data["MIXER"] || "-"})
 Support คอมฯ : (${data["Com"] || "-"})
-BS : (${data["BS1"] || "-"}) (${data["BS2"] || "-"}
+BS : (${data["BS1"] || "-"}) (${data["BS2"] || "-"})
 โต๊ะต้อนรับ (${data["ต้อนรับ"] || "-"})
 ถือมหาสนิท/ถุงถวาย (${data["ถือมหาสนิท/ถุงถวาย"] || "-"})
 คจ.เด็ก (${data["คจ.เด็ก1"] || "-"}) (${data["คจ.เด็ก2"] || "-"})
