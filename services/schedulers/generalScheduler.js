@@ -122,7 +122,7 @@ function readProgramFromExcel(targetDate) {
 
         const d = jsDate.getDate();
         const m = jsDate.toLocaleDateString("en-GB", { month: "short" });
-        const y = jsDate.getFullYear() + 543;
+        const y = jsDate.getFullYear() ;
 
         val = `${d}-${m}-${y}`;
 
