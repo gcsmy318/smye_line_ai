@@ -45,19 +45,10 @@ async function processQueue() {
 
       console.error("Push error:", err.statusCode, err.message);
 
-        if (err.statusCode === 429) {
-
-          console.log("⚠ 429 hit → wait 60s");
-
-          await wait(RETRY_DELAY);
-
-          queue.unshift(job);
-
-          await wait(5000); // ⭐ เพิ่ม delay ก่อน retry
-
-          continue;
-
-        }
+     if (err.statusCode === 429) {
+        console.log("⚠ 429 monthly quota exceeded → drop old job");
+        continue;
+      }
 
     }
 
